@@ -28,7 +28,7 @@ Commands are for Windows PowerShell, run from the repository root.
 | Job | `migrate` | Runs `alembic upgrade head` |
 | Service | `backend`, `frontend`, `postgres` | Stable DNS names and load balancing |
 | ConfigMap | `backend-config-<hash>` | Non-secret settings |
-| Secret | `taskboard-db-credentials` | Database user and password, generated from a git-ignored file |
+| Secret | `taskboard-db-credentials` | Database user and password, created with `kubectl` from a git-ignored file |
 
 Files:
 
@@ -47,7 +47,7 @@ deploy/
     │   ├── frontend-service.yaml
     │   └── migrate-job.yaml
     └── overlays/local/              Local-only additions and changes
-        ├── kustomization.yaml       Image tags, DB_HOST, Secret generator
+        ├── kustomization.yaml       Image tags, DB_HOST
         ├── secrets.env.example      Template for credentials
         ├── postgres-statefulset.yaml
         ├── postgres-service.yaml
@@ -103,7 +103,18 @@ docker exec taskboard-worker crictl images | Select-String taskboard
 Copy-Item deploy/apps/taskboard/overlays/local/secrets.env.example deploy/apps/taskboard/overlays/local/secrets.env
 ```
 
-Open `secrets.env` and replace the placeholder password (letters and digits only). The file is git-ignored. Kustomize turns it into the `taskboard-db-credentials` Secret at deploy time, so no credential is stored in a YAML file or in Git.
+Open `secrets.env` and replace the placeholder password (letters and digits only). The file is git-ignored.
+
+Create the namespace and, inside it, the Secret:
+
+```powershell
+kubectl apply -f deploy/apps/taskboard/base/namespace.yaml
+kubectl -n taskboard create secret generic taskboard-db-credentials --from-env-file=deploy/apps/taskboard/overlays/local/secrets.env
+```
+
+The Secret is the one resource that is not defined in the manifests. Everything else can be built from Git, which is what allows ArgoCD to deploy it, and no credential is ever stored in a YAML file.
+
+From here there are two ways to deploy. Section 5 applies the manifests by hand. [gitops-local.md](gitops-local.md) lets ArgoCD do it from Git instead. Use one or the other.
 
 ## 5. Deploy
 
@@ -312,7 +323,7 @@ The manifests and every `kubectl` command are the same.
 |---|---|---|
 | `APP_ENV`, `LOG_LEVEL`, `DB_POOL_SIZE`, `DB_PORT`, `DB_NAME` | ConfigMap, defined in `base/kustomization.yaml` | Environment variables |
 | `DB_HOST` | ConfigMap, added by the overlay | Environment variable |
-| `POSTGRES_USER`, `POSTGRES_PASSWORD` | Secret, generated from `secrets.env` | Environment variables |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD` | Secret, created from `secrets.env` in section 4 | Environment variables |
 | `DATABASE_URL` | Assembled by Kubernetes from the values above | Environment variable |
 
 - The ConfigMap name ends in a hash of its content. Changing a value creates a new ConfigMap and rolls the pods, so running pods never hold stale settings.
@@ -370,7 +381,7 @@ kubectl get events --sort-by=.lastTimestamp
 
 | Symptom | Likely cause | What to do |
 |---|---|---|
-| `error: ... secrets.env: no such file` on apply | Credentials file missing | Do section 4 |
+| Pods stuck in `CreateContainerConfigError`, message `secret "taskboard-db-credentials" not found` | The Secret was not created, or was deleted with the namespace | Do section 4 |
 | `ErrImagePull` or `ImagePullBackOff` on backend or frontend | Image was not loaded into the cluster | Repeat section 3, then `kubectl rollout restart deployment/backend deployment/frontend` |
 | Backend pod stuck at `Init:0/1` | Schema not migrated yet | `kubectl logs job/migrate`, then `kubectl logs deployment/backend -c wait-for-migrations` |
 | `migrate` pods in `Error` | Database not ready yet (retries by itself), or wrong credentials | `kubectl logs job/migrate` |
@@ -410,7 +421,7 @@ docker ps -a --filter "name=taskboard"
 
 | Item | Arrives with |
 |---|---|
-| Unique image tags and automated deployment | CI pipeline and ArgoCD |
+| Unique image tags pushed by CI | Release pipeline (needs a registry) |
 | Horizontal Pod Autoscaler, PodDisruptionBudgets | Scaling milestone |
 | NetworkPolicies | Security hardening milestone |
 | Prometheus and Grafana | Observability milestone |

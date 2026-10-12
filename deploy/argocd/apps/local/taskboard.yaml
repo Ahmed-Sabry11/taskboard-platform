@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: taskboard
+  namespace: argocd
+spec:
+  project: taskboard
+  source:
+    repoURL: https://github.com/Ahmed-Sabry11/taskboard-platform.git
+    targetRevision: main
+    path: deploy/apps/taskboard/overlays/local
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: taskboard
+  syncPolicy:
+    automated:
+      # Remove resources that were deleted from Git.
+      prune: true
+      # Undo changes made directly in the cluster.
+      selfHeal: true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 2m

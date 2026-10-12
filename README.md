@@ -20,8 +20,8 @@ The deliverable is the platform: infrastructure as code, a CI pipeline, GitOps d
 |---|---|---|
 | M0 | Repository, conventions, safeguards | Done |
 | M1 | Application with tests | Done |
-| M2 | Containers | Done. CI pipeline pending |
-| M3 | Local Kubernetes | Done. ArgoCD on the local cluster pending |
+| M2 | Containers and CI pipeline | Done |
+| M3 | Local Kubernetes and GitOps with ArgoCD | Done |
 | M4 | AWS infrastructure with Terraform | Not started |
 | M5 | GitOps on EKS | Not started |
 | M6 | Observability | Not started |
@@ -120,6 +120,8 @@ Keeping these apart means each pipeline runs only for its own directory, and a r
 | [docs/architecture.md](docs/architecture.md) | Full design: components, networking, security, CI/CD, GitOps, scaling, decision records, acceptance criteria |
 | [docs/local-development.md](docs/local-development.md) | Docker Compose in depth: build, test, networking, volumes, configuration, API, troubleshooting |
 | [docs/kubernetes-local.md](docs/kubernetes-local.md) | Deploying to a local kind cluster: inspect, logs, network tests, troubleshooting |
+| [docs/gitops-local.md](docs/gitops-local.md) | ArgoCD on the local cluster: app of apps, sync order, drift correction, rollback |
+| [.github/workflows/README.md](.github/workflows/README.md) | What the CI pipeline checks and when each job runs |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Branching strategy, commit conventions, pull requests, keeping secrets out of Git |
 
 ## Working in this repository

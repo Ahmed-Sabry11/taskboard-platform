@@ -2,6 +2,8 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: taskboard
+  annotations:
+    argocd.argoproj.io/sync-wave: "-3"
   labels:
     # Pod Security Standards: pods that run as root, allow privilege
     # escalation, or keep Linux capabilities are rejected at admission.

@@ -1,6 +1,7 @@
 # Local cluster (kind or minikube): the base application plus an in-cluster
 # PostgreSQL, locally built images, and a NodePort for browser access.
 #
+# Deployed by ArgoCD (see docs/gitops-local.md), or by hand with:
 #   kubectl apply -k deploy/apps/taskboard/overlays/local
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -25,17 +26,14 @@ configMapGenerator:
     literals:
       - DB_HOST=postgres
 
-# Credentials are read from secrets.env, which is git-ignored. Copy
-# secrets.env.example to secrets.env and set your own values. No credential
-# is ever written in a YAML file.
-secretGenerator:
-  - name: taskboard-db-credentials
-    envs:
-      - secrets.env
-    options:
-      # Stable name, so the AWS overlay can provide the same Secret from
-      # AWS Secrets Manager without touching the workloads.
-      disableNameSuffixHash: true
+# The taskboard-db-credentials Secret is deliberately not defined here.
+# ArgoCD builds this overlay from Git, and credentials are never in Git.
+# Create the Secret once, straight from the git-ignored secrets.env:
+#
+#   kubectl -n taskboard create secret generic taskboard-db-credentials \
+#     --from-env-file=deploy/apps/taskboard/overlays/local/secrets.env
+#
+# On AWS the same Secret is provided by External Secrets from Secrets Manager.
 
 patches:
   - path: frontend-service-nodeport.yaml
