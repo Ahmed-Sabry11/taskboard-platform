@@ -1,0 +1,20 @@
+# Tells Prometheus to scrape /metrics on every pod behind the backend Service.
+# Prometheus reaches the pods directly, inside the cluster. The path is not
+# under /api, so it is never exposed through the frontend or a load balancer.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: backend
+  namespace: taskboard
+  labels:
+    app.kubernetes.io/name: backend
+    app.kubernetes.io/part-of: taskboard
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: backend
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+      scrapeTimeout: 5s

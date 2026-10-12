@@ -168,6 +168,13 @@ jobs:
           echo "Rendered $(grep -c '^kind:' rendered.yaml) resources"
       - name: Validate the rendered manifests against the Kubernetes schema
         run: docker run --rm -i "$KUBECONFORM_IMAGE" -strict -summary - < rendered.yaml
+      - name: Render and validate the monitoring definitions
+        # ServiceMonitor and PrometheusRule are custom types: checked for
+        # well-formed YAML, skipped by the schema validator.
+        run: |
+          kubectl kustomize deploy/monitoring/taskboard > monitoring.yaml
+          docker run --rm -i "$KUBECONFORM_IMAGE" -strict -summary -ignore-missing-schemas - < monitoring.yaml
+          python3 -c "import json; d = json.load(open('deploy/monitoring/taskboard/dashboards/taskboard.json')); print('dashboard', d['uid'], 'with', len(d['panels']), 'panels')"
       - name: Validate the ArgoCD definitions
         # ArgoCD's own resource types are not in the Kubernetes schema, so
         # they are checked for well-formed YAML and skipped by the validator.

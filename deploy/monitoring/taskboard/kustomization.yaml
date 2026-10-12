@@ -1,0 +1,20 @@
+# Monitoring definitions for TaskBoard and for ArgoCD. Each resource names its
+# own namespace: definitions live next to the thing they monitor.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - backend-servicemonitor.yaml
+  - backend-alerts.yaml
+  - argocd-servicemonitor.yaml
+
+# Grafana's sidecar loads any ConfigMap carrying the grafana_dashboard label.
+configMapGenerator:
+  - name: taskboard-dashboard
+    namespace: monitoring
+    files:
+      - taskboard.json=dashboards/taskboard.json
+    options:
+      disableNameSuffixHash: true
+      labels:
+        grafana_dashboard: "1"

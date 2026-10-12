@@ -1,0 +1,30 @@
+# Project for cluster-level tooling such as monitoring. Unlike the taskboard
+# project it may create cluster-wide resources (custom resource definitions,
+# cluster roles), so it is limited by source: only this repository and the
+# one chart repository below.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: platform
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  description: Cluster tooling
+  sourceRepos:
+    - https://github.com/Ahmed-Sabry11/taskboard-platform.git
+    - https://prometheus-community.github.io/helm-charts
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: monitoring
+    # The Prometheus chart creates Services here to reach the kubelet and DNS.
+    - server: https://kubernetes.default.svc
+      namespace: kube-system
+    # Monitoring definitions that live next to what they monitor.
+    - server: https://kubernetes.default.svc
+      namespace: taskboard
+    - server: https://kubernetes.default.svc
+      namespace: argocd
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"

@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
+from app.metrics import setup_metrics
 from app.routers import health, tasks
 
 
@@ -35,6 +36,7 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router, prefix="/api")
     app.include_router(tasks.router, prefix="/api")
+    setup_metrics(app)
     return app
 
 

@@ -24,7 +24,7 @@ The deliverable is the platform: infrastructure as code, a CI pipeline, GitOps d
 | M3 | Local Kubernetes and GitOps with ArgoCD | Done |
 | M4 | AWS infrastructure with Terraform | Code complete and tested offline. Not yet applied to AWS |
 | M5 | GitOps on EKS | Not started |
-| M6 | Observability | Not started |
+| M6 | Observability | Done on the local cluster |
 | M7 | Auto-scaling and resilience | Not started |
 | M8 | Hardening and evaluation | Not started |
 
@@ -121,6 +121,7 @@ Keeping these apart means each pipeline runs only for its own directory, and a r
 | [docs/local-development.md](docs/local-development.md) | Docker Compose in depth: build, test, networking, volumes, configuration, API, troubleshooting |
 | [docs/kubernetes-local.md](docs/kubernetes-local.md) | Deploying to a local kind cluster: inspect, logs, network tests, troubleshooting |
 | [docs/gitops-local.md](docs/gitops-local.md) | ArgoCD on the local cluster: app of apps, sync order, drift correction, rollback |
+| [docs/observability.md](docs/observability.md) | Prometheus and Grafana: metrics, dashboard, alerts, and how each was verified |
 | [docs/infrastructure.md](docs/infrastructure.md) | Terraform on AWS: architecture, prerequisites, cost estimate, billable resources, deploy and destroy steps |
 | [.github/workflows/README.md](.github/workflows/README.md) | What the CI pipeline checks and when each job runs |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Branching strategy, commit conventions, pull requests, keeping secrets out of Git |

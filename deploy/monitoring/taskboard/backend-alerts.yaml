@@ -1,0 +1,89 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: taskboard
+  namespace: taskboard
+  labels:
+    app.kubernetes.io/part-of: taskboard
+spec:
+  groups:
+    - name: taskboard.availability
+      rules:
+        - alert: TaskboardBackendDown
+          # No backend pod is answering scrapes at all.
+          expr: absent(up{namespace="taskboard", job="backend"} == 1)
+          # Short on purpose: a total outage should page quickly. Measured
+          # with 1m, the alert fired 130 seconds after the outage began,
+          # because noticing that every pod is gone already takes about a minute.
+          for: 30s
+          labels:
+            severity: critical
+          annotations:
+            summary: No TaskBoard backend pod is reachable
+            description: Prometheus has not been able to scrape any backend pod for 30 seconds. The API is down.
+
+        - alert: TaskboardBackendReplicasUnavailable
+          expr: |
+            kube_deployment_status_replicas_available{namespace="taskboard", deployment="backend"}
+              < kube_deployment_spec_replicas{namespace="taskboard", deployment="backend"}
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: TaskBoard backend is running below its desired replica count
+            description: "{{ $value }} backend replicas are available, fewer than desired, for 5 minutes."
+
+        - alert: TaskboardPodRestarting
+          expr: increase(kube_pod_container_status_restarts_total{namespace="taskboard"}[15m]) > 2
+          for: 1m
+          labels:
+            severity: warning
+          annotations:
+            summary: "A TaskBoard container keeps restarting"
+            description: "Container {{ $labels.container }} in pod {{ $labels.pod }} restarted more than twice in 15 minutes."
+
+    - name: taskboard.requests
+      rules:
+        - alert: TaskboardHighErrorRate
+          # Share of requests answered with a 5xx status.
+          expr: |
+            sum(rate(http_requests_total{namespace="taskboard", status=~"5.."}[5m]))
+              / sum(rate(http_requests_total{namespace="taskboard"}[5m])) > 0.05
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: More than 5% of TaskBoard API requests are failing
+            description: "{{ $value | humanizePercentage }} of requests returned a server error over the last 5 minutes."
+
+        - alert: TaskboardHighLatency
+          expr: |
+            histogram_quantile(0.95,
+              sum by (le) (rate(http_request_duration_highr_seconds_bucket{namespace="taskboard"}[5m]))
+            ) > 1
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: TaskBoard API responses are slow
+            description: "The 95th percentile response time is {{ $value | humanizeDuration }}, above 1 second for 5 minutes."
+
+    - name: taskboard.delivery
+      rules:
+        - alert: TaskboardNotInSyncWithGit
+          expr: argocd_app_info{name="taskboard", sync_status!="Synced"} == 1
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: The cluster does not match Git for TaskBoard
+            description: "ArgoCD has reported sync status {{ $labels.sync_status }} for 10 minutes. A sync is failing or automatic sync is off."
+
+        - alert: TaskboardDegraded
+          expr: argocd_app_info{name="taskboard", health_status=~"Degraded|Missing"} == 1
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: ArgoCD reports TaskBoard as unhealthy
+            description: "Health status has been {{ $labels.health_status }} for 5 minutes."

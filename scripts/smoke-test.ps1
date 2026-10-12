@@ -73,6 +73,11 @@ $r = Invoke-Http -Url "$FrontendUrl/"
 Test-Check 'serves the web page' (($r.Status -eq 200) -and ($r.Content -match '<div id="root">')) "got $($r.Status)"
 Test-Check 'sends a Content-Security-Policy header' ([bool]$r.Headers['Content-Security-Policy'])
 Test-Check 'sends X-Content-Type-Options: nosniff' ("$($r.Headers['X-Content-Type-Options'])" -eq 'nosniff')
+# Metrics are for Prometheus inside the cluster, never for visitors.
+$r = Invoke-Http -Url "$FrontendUrl/metrics"
+Test-Check 'does not expose backend metrics at /metrics' ($r.Content -notmatch 'http_requests_total')
+$r = Invoke-Http -Url "$FrontendUrl/api/metrics"
+Test-Check 'does not expose backend metrics at /api/metrics' ($r.Status -eq 404) "got $($r.Status)"
 
 Write-Host 'CRUD through the frontend proxy (frontend -> backend -> database)'
 $api = "$FrontendUrl/api/tasks"
