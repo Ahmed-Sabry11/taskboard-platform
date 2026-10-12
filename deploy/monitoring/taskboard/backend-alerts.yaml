@@ -12,12 +12,15 @@ spec:
         - alert: TaskboardBackendDown
           # No backend pod is answering scrapes at all.
           expr: absent(up{namespace="taskboard", job="backend"} == 1)
-          for: 1m
+          # Short on purpose: a total outage should page quickly. Measured
+          # with 1m, the alert fired 130 seconds after the outage began,
+          # because noticing that every pod is gone already takes about a minute.
+          for: 30s
           labels:
             severity: critical
           annotations:
             summary: No TaskBoard backend pod is reachable
-            description: Prometheus has not been able to scrape any backend pod for 1 minute. The API is down.
+            description: Prometheus has not been able to scrape any backend pod for 30 seconds. The API is down.
 
         - alert: TaskboardBackendReplicasUnavailable
           expr: |
