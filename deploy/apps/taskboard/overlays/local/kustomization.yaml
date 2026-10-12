@@ -37,7 +37,3 @@ configMapGenerator:
 
 patches:
   - path: frontend-service-nodeport.yaml
-
-replicas:
-  - name: frontend
-    count: 3
