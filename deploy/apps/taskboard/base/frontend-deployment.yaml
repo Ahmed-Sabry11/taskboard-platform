@@ -46,10 +46,15 @@ spec:
             - name: http
               containerPort: 8080
           env:
-            # The backend Service's DNS name. Not a secret, and the same in
-            # every environment, so it is set here directly.
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            # The backend Service's full DNS name. NGINX looks it up at request
+            # time without DNS search domains, so the short name "backend"
+            # would not resolve.
             - name: BACKEND_URL
-              value: http://backend:8000
+              value: http://backend.$(POD_NAMESPACE).svc.cluster.local:8000
           # /healthz is answered by NGINX itself, so a backend outage does
           # not take the web pods out of service.
           livenessProbe:
