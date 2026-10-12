@@ -162,13 +162,16 @@ jobs:
             config --quiet --severity HIGH,CRITICAL --exit-code 1 /repo
       - name: Render the local overlay
         run: |
-          overlay=deploy/apps/taskboard/overlays/local
-          # The credentials file is git-ignored. The template stands in for it.
-          cp "$overlay/secrets.env.example" "$overlay/secrets.env"
-          kubectl kustomize "$overlay" > rendered.yaml
+          kubectl kustomize deploy/apps/taskboard/overlays/local > rendered.yaml
           echo "Rendered $(grep -c '^kind:' rendered.yaml) resources"
       - name: Validate the rendered manifests against the Kubernetes schema
         run: docker run --rm -i "$KUBECONFORM_IMAGE" -strict -summary - < rendered.yaml
+      - name: Validate the ArgoCD definitions
+        # ArgoCD's own resource types are not in the Kubernetes schema, so
+        # they are checked for well-formed YAML and skipped by the validator.
+        run: |
+          docker run --rm -v "$PWD/deploy/argocd:/argocd:ro" "$KUBECONFORM_IMAGE" \
+            -strict -summary -ignore-missing-schemas /argocd/root /argocd/apps
 
   ci-ok:
     name: ci-ok

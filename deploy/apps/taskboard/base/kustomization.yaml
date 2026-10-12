@@ -21,6 +21,12 @@ labels:
 # new backend pods instead of leaving old pods on stale configuration.
 configMapGenerator:
   - name: backend-config
+    options:
+      annotations:
+        # ArgoCD applies resources in waves, lowest first, and waits for each
+        # wave to be healthy:  -3 namespace, -2 configuration, -1 database,
+        # 0 services and the migration, 1 the application.
+        argocd.argoproj.io/sync-wave: "-2"
     literals:
       - APP_ENV=production
       - LOG_LEVEL=INFO

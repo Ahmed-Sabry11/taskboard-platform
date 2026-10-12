@@ -1,13 +1,20 @@
 # Applies database migrations once per release, before the backend serves.
 #
-# A Job's pod template cannot be changed after creation. When redeploying with
-# kubectl, delete the old Job first:
+# With ArgoCD this is a sync hook: on every sync the previous Job is deleted
+# and a new one runs, after the database (wave -1) is healthy and before the
+# backend (wave 1) is rolled out. A failed migration stops the sync.
+#
+# With plain kubectl the annotations are ignored. A Job's pod template cannot
+# be changed after creation, so delete the old Job before applying again:
 #   kubectl -n taskboard delete job migrate --ignore-not-found
-# ArgoCD will run this as a PreSync hook and handle that itself.
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: migrate
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "0"
   labels:
     app.kubernetes.io/name: migrate
     app.kubernetes.io/component: migration

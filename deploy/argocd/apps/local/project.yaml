@@ -1,0 +1,21 @@
+# Limits what the TaskBoard application may deploy: only from this repository,
+# only into the taskboard namespace, and no cluster-wide resources other than
+# that namespace itself.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: taskboard
+  namespace: argocd
+  annotations:
+    # Must exist before the Application that refers to it.
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  description: TaskBoard application
+  sourceRepos:
+    - https://github.com/Ahmed-Sabry11/taskboard-platform.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: taskboard
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace

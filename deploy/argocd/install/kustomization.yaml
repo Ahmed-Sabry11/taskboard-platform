@@ -1,0 +1,15 @@
+# Installs ArgoCD itself on a local cluster. This is the only thing applied by
+# hand. Everything else is deployed by ArgoCD from Git.
+#
+#   kubectl apply -k deploy/argocd/install --server-side
+#
+# On AWS, ArgoCD is installed by the Terraform bootstrap stack instead.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: argocd
+
+resources:
+  - namespace.yaml
+  # Pinned to an exact release. Upgrading ArgoCD is a reviewed change to this line.
+  - https://raw.githubusercontent.com/argoproj/argo-cd/v3.5.5/manifests/install.yaml
