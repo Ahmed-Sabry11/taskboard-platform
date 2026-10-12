@@ -71,6 +71,13 @@ spec:
             periodSeconds: 5
             timeoutSeconds: 2
             failureThreshold: 2
+          # When a pod is told to stop, the rest of the cluster needs a moment
+          # to stop routing new requests to it. Waiting first means no request
+          # reaches a container that is already shutting down.
+          lifecycle:
+            preStop:
+              sleep:
+                seconds: 5
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
