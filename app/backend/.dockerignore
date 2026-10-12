@@ -1,0 +1,25 @@
+# Keeps the build context small and keeps secrets and local state out of images.
+# tests/ and requirements-dev.txt stay in the context for the "test" stage;
+# the runtime stage copies only app/, migrations/ and alembic.ini.
+
+# Secrets and local configuration
+.env
+.env.*
+
+# Local environments and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Not needed inside the image
+Dockerfile
+.dockerignore
+.git/
+.gitignore
+*.md

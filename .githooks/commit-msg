@@ -1,0 +1,35 @@
+#!/bin/sh
+# Enforces the commit message format described in CONTRIBUTING.md:
+#
+#   <type>(<scope>): <summary>
+#
+# Enable once per clone with:  git config core.hooksPath .githooks
+
+subject=$(sed -n '1p' "$1")
+
+# Messages Git writes itself.
+case "$subject" in
+  "Merge "* | "Revert "* | "fixup! "* | "squash! "*) exit 0 ;;
+esac
+
+types='feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert'
+scopes='frontend|backend|infra|deploy|ci|docs|repo|deps'
+
+if ! printf '%s\n' "$subject" | grep -qE "^($types)(\(($scopes)\))?!?: [^ ].*[^.]$"; then
+  echo "Commit rejected: the subject line does not follow the convention."
+  echo
+  echo "  Yours:    $subject"
+  echo "  Expected: <type>(<scope>): <summary>"
+  echo "  Example:  feat(backend): add due-date filter to task list"
+  echo
+  echo "  Types:  $types" | tr '|' ' '
+  echo "  Scopes: $scopes (optional)" | tr '|' ' '
+  echo "  The summary starts after one space and has no trailing period."
+  exit 1
+fi
+
+if [ "${#subject}" -gt 72 ]; then
+  echo "Commit rejected: the subject line is ${#subject} characters. Keep it to 72 or fewer."
+  exit 1
+fi
+exit 0

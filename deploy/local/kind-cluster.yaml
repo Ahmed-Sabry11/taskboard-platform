@@ -1,0 +1,16 @@
+# Local cluster: one control-plane node and two workers, each a Docker container.
+# Create with:  kind create cluster --config deploy/local/kind-cluster.yaml
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: taskboard
+nodes:
+  - role: control-plane
+    # Makes the frontend's NodePort reachable from your machine at
+    # http://127.0.0.1:8090 and from nowhere else on the network.
+    extraPortMappings:
+      - containerPort: 30080
+        hostPort: 8090
+        listenAddress: "127.0.0.1"
+        protocol: TCP
+  - role: worker
+  - role: worker

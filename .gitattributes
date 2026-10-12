@@ -1,0 +1,18 @@
+# Store text with LF line endings whatever the contributor's operating system.
+# Files copied into Linux containers (Dockerfiles, NGINX config, SQL, shell
+# hooks) break or behave oddly with CRLF.
+* text=auto eol=lf
+
+# Windows scripts keep CRLF.
+*.ps1 text eol=crlf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Never treat these as text.
+*.png binary
+*.jpg binary
+*.ico binary
+*.pdf binary
+
+# Generated file: keep it out of diffs and language statistics.
+package-lock.json linguist-generated=true -diff

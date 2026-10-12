@@ -1,0 +1,102 @@
+# =============================================================================
+# Anything matched here stays out of Git. The pre-commit hook in .githooks/
+# is a second line of defence for files added with "git add -f".
+# Templates (*.example) are the only env-style files that may be committed.
+# =============================================================================
+
+# ---- Secrets and local environment files ------------------------------------
+.env
+.env.*
+*.env
+!.env.example
+!*.env.example
+
+# Private keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.ppk
+*.jks
+id_rsa*
+id_ed25519*
+id_ecdsa*
+
+# Cloud and cluster credentials
+.aws/
+*accessKeys*.csv
+*credentials*.csv
+kubeconfig
+*.kubeconfig
+.kube/
+
+# Plain Kubernetes Secret manifests. Secrets are generated from git-ignored
+# files locally and come from AWS Secrets Manager on AWS, never from Git.
+secret.yaml
+secrets.yaml
+*.secret.yaml
+*.secrets.yaml
+
+# ---- Terraform --------------------------------------------------------------
+# State files contain every resource attribute, including generated passwords.
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.tfstate.lock.info
+crash.log
+crash.*.log
+
+# Variable files may hold account ids and secrets. Commit a *.tfvars.example.
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+
+# Saved plans embed variable values.
+*.tfplan
+tfplan
+
+# Local overrides and CLI configuration
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Do commit .terraform.lock.hcl: it pins provider versions.
+
+# ---- Python -----------------------------------------------------------------
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+*.egg-info/
+
+# ---- Node -------------------------------------------------------------------
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+npm-debug.log*
+
+# Do commit package-lock.json: it makes builds reproducible.
+
+# ---- Data and test output ---------------------------------------------------
+*.dump
+*.sql.gz
+*.log
+loadtest/results/
+
+# ---- Editors and operating systems ------------------------------------------
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini

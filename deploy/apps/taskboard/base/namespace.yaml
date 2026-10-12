@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: taskboard
+  labels:
+    # Pod Security Standards: pods that run as root, allow privilege
+    # escalation, or keep Linux capabilities are rejected at admission.
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted

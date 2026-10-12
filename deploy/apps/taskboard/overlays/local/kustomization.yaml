@@ -1,0 +1,41 @@
+# Local cluster (kind or minikube): the base application plus an in-cluster
+# PostgreSQL, locally built images, and a NodePort for browser access.
+#
+#   kubectl apply -k deploy/apps/taskboard/overlays/local
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: taskboard
+
+resources:
+  - ../../base
+  - postgres-service.yaml
+  - postgres-statefulset.yaml
+
+# Images built by "docker compose build" and loaded into the cluster.
+images:
+  - name: taskboard-backend
+    newTag: local
+  - name: taskboard-frontend
+    newTag: local
+
+configMapGenerator:
+  - name: backend-config
+    behavior: merge
+    literals:
+      - DB_HOST=postgres
+
+# Credentials are read from secrets.env, which is git-ignored. Copy
+# secrets.env.example to secrets.env and set your own values. No credential
+# is ever written in a YAML file.
+secretGenerator:
+  - name: taskboard-db-credentials
+    envs:
+      - secrets.env
+    options:
+      # Stable name, so the AWS overlay can provide the same Secret from
+      # AWS Secrets Manager without touching the workloads.
+      disableNameSuffixHash: true
+
+patches:
+  - path: frontend-service-nodeport.yaml

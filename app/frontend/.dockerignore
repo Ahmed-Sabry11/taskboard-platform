@@ -1,0 +1,19 @@
+# Keeps the build context small and keeps secrets and local state out of images.
+
+# Secrets and local configuration
+.env
+.env.*
+
+# Installed and generated on the build machine, rebuilt inside the image
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+npm-debug.log*
+
+# Not needed inside the image
+Dockerfile
+.dockerignore
+.git/
+.gitignore
+*.md

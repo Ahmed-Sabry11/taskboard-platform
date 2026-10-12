@@ -1,0 +1,30 @@
+# Environment-independent definition of the application: the two stateless
+# services and the migration Job. It is not deployed on its own. An overlay
+# supplies the namespace, image tags, the database, and the credentials.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yaml
+  - backend-deployment.yaml
+  - backend-service.yaml
+  - frontend-deployment.yaml
+  - frontend-service.yaml
+  - migrate-job.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: taskboard
+    includeSelectors: false
+
+# Generated with a content hash in its name, so changing a value rolls out
+# new backend pods instead of leaving old pods on stale configuration.
+configMapGenerator:
+  - name: backend-config
+    literals:
+      - APP_ENV=production
+      - LOG_LEVEL=INFO
+      - DB_POOL_SIZE=5
+      - DB_PORT=5432
+      - DB_NAME=taskboard
+      # DB_HOST is set by each overlay.

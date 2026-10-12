@@ -1,0 +1,13 @@
+# Exposes the frontend on a fixed node port. The kind cluster config maps
+# that port to http://127.0.0.1:8090 on your machine.
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+spec:
+  type: NodePort
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      nodePort: 30080

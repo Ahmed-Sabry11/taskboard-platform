@@ -1,0 +1,150 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  labels:
+    app.kubernetes.io/name: backend
+    app.kubernetes.io/component: api
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: backend
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # Never drop below the desired replica count during a rollout.
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: backend
+        app.kubernetes.io/component: api
+    spec:
+      # The application never calls the Kubernetes API, so it gets no token.
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: backend
+      initContainers:
+        # Holds the pod back until the migrate Job has brought the schema to
+        # the version this image expects, so no replica serves requests
+        # against a missing or outdated schema.
+        - name: wait-for-migrations
+          image: taskboard-backend
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              attempts=0
+              until alembic current 2>/dev/null | grep -q "(head)"; do
+                attempts=$((attempts + 1))
+                if [ "$attempts" -ge 60 ]; then
+                  echo "Schema is still not at head after 120s. Check: kubectl logs job/migrate"
+                  exit 1
+                fi
+                echo "Waiting for database migrations..."
+                sleep 2
+              done
+              echo "Schema is up to date."
+          envFrom:
+            - configMapRef:
+                name: backend-config
+            - secretRef:
+                name: taskboard-db-credentials
+          env:
+            - name: DATABASE_URL
+              value: postgresql+psycopg://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 96Mi
+            limits:
+              cpu: 250m
+              memory: 192Mi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      containers:
+        - name: backend
+          image: taskboard-backend
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+          # Non-secret settings come from the ConfigMap, credentials from the
+          # Secret. Both become environment variables.
+          envFrom:
+            - configMapRef:
+                name: backend-config
+            - secretRef:
+                name: taskboard-db-credentials
+          env:
+            # Assembled by Kubernetes from the variables above, so the
+            # password is never written into a manifest.
+            - name: DATABASE_URL
+              value: postgresql+psycopg://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)
+          # Gives a slow start up to 60s before liveness takes over.
+          startupProbe:
+            httpGet:
+              path: /api/healthz
+              port: http
+            periodSeconds: 2
+            failureThreshold: 30
+          # Restart the container if the process stops answering. Does not
+          # touch the database: a database outage must not restart healthy pods.
+          livenessProbe:
+            httpGet:
+              path: /api/healthz
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          # Remove the pod from the Service while it cannot reach the database.
+          readinessProbe:
+            httpGet:
+              path: /api/readyz
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          # Requests are what the scheduler reserves (and what the HPA will
+          # measure against later). Limits are the hard ceiling.
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 32Mi

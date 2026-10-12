@@ -1,0 +1,70 @@
+#!/bin/sh
+# Blocks a commit that would add credentials, Terraform state, or local
+# environment files. Enable once per clone with:
+#
+#   git config core.hooksPath .githooks
+#
+# .gitignore already keeps these files out. This hook catches what gets past
+# it: files added with "git add -f" and secrets pasted into ordinary files.
+# To allow one line that only looks like a secret, end it with the comment
+#   secret-scan:allow
+
+# No filename expansion: file names and patterns below are used literally.
+set -f
+
+files=$(git diff --cached --name-only --diff-filter=ACMR)
+[ -z "$files" ] && exit 0
+
+failed=0
+IFS='
+'
+
+# ---- 1. File names that must never be committed ------------------------------
+for file in $files; do
+  name=${file##*/}
+  case "$name" in
+    *.example | *.sample | *.template) continue ;;
+  esac
+  case "$name" in
+    .env | .env.* | *.env | \
+    *.tfstate | *.tfstate.* | *.tfvars | *.tfvars.json | *.tfplan | tfplan | \
+    *.pem | *.key | *.p12 | *.pfx | *.ppk | *.jks | id_rsa* | id_ed25519* | id_ecdsa* | \
+    kubeconfig | *.kubeconfig | credentials | \
+    secret.yaml | secrets.yaml | *.secret.yaml | *.secrets.yaml)
+      echo "  BLOCKED file      $file"
+      failed=1
+      ;;
+  esac
+done
+
+# ---- 2. Secret-looking content in the staged files ---------------------------
+# Each rule is "description|extended regular expression". One "git grep" per
+# rule searches the staged version of every file at once, which keeps the hook
+# fast even for large commits.
+rules='AWS access key id|(AKIA|ASIA)[0-9A-Z]{16}
+AWS secret access key|aws_secret_access_key[[:space:]]*[=:][[:space:]]*["'"'"']?[A-Za-z0-9/+=]{40}
+private key|-----BEGIN [A-Z ]*PRIVATE KEY-----
+GitHub token|(gh[pousr]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{22,})
+password inside a URL|://[^:/@[:space:]$<{]+:[^@/[:space:]$<{]{8,}@'
+
+for rule in $rules; do
+  description=${rule%%|*}
+  pattern=${rule#*|}
+  # -I skips binary files. Output is "file:line:text"; only the file is kept,
+  # so a matched secret is never printed to the terminal.
+  hits=$(git grep --cached -I -n -E -e "$pattern" -- $files 2>/dev/null |
+    grep -v 'secret-scan:allow' | cut -d: -f1 | sort -u)
+  for file in $hits; do
+    echo "  BLOCKED content   $file  ($description)"
+    failed=1
+  done
+done
+
+if [ "$failed" -ne 0 ]; then
+  echo
+  echo "Commit rejected: the changes above look like credentials or local state."
+  echo "Unstage them with:  git restore --staged <file>"
+  echo "If a secret was real, rotate it now. It must be treated as exposed."
+  exit 1
+fi
+exit 0
