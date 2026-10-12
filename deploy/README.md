@@ -16,7 +16,9 @@ deploy/
 │   ├── root/                Root application per environment, applied once by hand
 │   └── apps/local/          Applications and projects that the root application creates
 ├── platform/                Cluster add-ons with pinned chart versions (planned, Milestone 5)
-├── monitoring/              Prometheus stack, dashboards, alerts (planned, Milestone 6)
+├── monitoring/
+│   ├── stack/               Settings for the Prometheus and Grafana chart
+│   └── taskboard/           What to scrape, alert rules, and the dashboard for TaskBoard
 └── local/                   kind cluster definition and a debug pod
 ```
 
@@ -24,7 +26,8 @@ deploy/
 |---|---|
 | `apps/taskboard/base`, `overlays/local`, `local` | In use. See [docs/kubernetes-local.md](../docs/kubernetes-local.md). |
 | `argocd` | In use on the local cluster. See [docs/gitops-local.md](../docs/gitops-local.md). |
-| `overlays/aws`, `platform`, `monitoring` | Not created yet |
+| `monitoring` | In use on the local cluster. See [docs/observability.md](../docs/observability.md). |
+| `overlays/aws`, `platform` | Not created yet |
 
 ## Rules
 

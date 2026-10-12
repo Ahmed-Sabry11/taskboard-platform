@@ -424,5 +424,5 @@ docker ps -a --filter "name=taskboard"
 | Unique image tags pushed by CI | Release pipeline (needs a registry) |
 | Horizontal Pod Autoscaler, PodDisruptionBudgets | Scaling milestone |
 | NetworkPolicies | Security hardening milestone |
-| Prometheus and Grafana | Observability milestone |
+| Prometheus and Grafana | Done. Deployed by ArgoCD, see [observability.md](observability.md) |
 | Ingress with TLS, RDS, External Secrets | AWS overlay |

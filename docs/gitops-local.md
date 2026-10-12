@@ -47,6 +47,8 @@ kubectl -n argocd rollout status statefulset/argocd-application-controller
 
 ## 2. Hand the cluster over to Git
 
+The root application also deploys the monitoring stack, whose Grafana login comes from a Secret that is not in Git. Create it first, as described under "One-time setup" in [observability.md](observability.md). Then:
+
 ```powershell
 kubectl apply -f deploy/argocd/root/local.yaml
 ```
@@ -57,7 +59,7 @@ This is the last `kubectl apply`. Watch ArgoCD create the application and deploy
 kubectl -n argocd get applications -w
 ```
 
-Both applications should reach `Synced` and `Healthy`. Then check the result:
+All four applications (`root`, `taskboard`, `monitoring`, `taskboard-monitoring`) should reach `Synced` and `Healthy`. The monitoring stack downloads about 1 GB of images and takes several minutes the first time. Then check the result:
 
 ```powershell
 kubectl -n taskboard get pods
