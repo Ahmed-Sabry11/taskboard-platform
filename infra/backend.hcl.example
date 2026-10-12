@@ -1,0 +1,9 @@
+# Where the persistent and platform stacks keep their state.
+#
+# Copy to backend.hcl (git-ignored) and fill in the values printed by:
+#   terraform -chdir=infra/stacks/state-backend output -raw backend_config
+#
+# Used as:  terraform init -backend-config=../../backend.hcl
+
+bucket = "taskboard-tfstate-<ACCOUNT_ID>-us-east-1"
+region = "us-east-1"

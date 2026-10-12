@@ -22,7 +22,7 @@ The deliverable is the platform: infrastructure as code, a CI pipeline, GitOps d
 | M1 | Application with tests | Done |
 | M2 | Containers and CI pipeline | Done |
 | M3 | Local Kubernetes and GitOps with ArgoCD | Done |
-| M4 | AWS infrastructure with Terraform | Not started |
+| M4 | AWS infrastructure with Terraform | Code complete and tested offline. Not yet applied to AWS |
 | M5 | GitOps on EKS | Not started |
 | M6 | Observability | Not started |
 | M7 | Auto-scaling and resilience | Not started |
@@ -69,11 +69,11 @@ taskboard-platform/
 │       └── Dockerfile
 │
 ├── infra/                        Terraform: everything that exists in AWS
-│   ├── modules/                  Reusable building blocks (network, eks, rds, ecr, iam)
+│   ├── modules/                  Reusable building blocks (network, iam, github-oidc, ecr, eks, security)
 │   └── stacks/                   Deployable units, each with its own state
-│       ├── persistent/           State bucket, ECR, GitHub OIDC role, budget
-│       ├── platform/             VPC, EKS, RDS (created and destroyed per session)
-│       └── bootstrap/            ArgoCD installation
+│       ├── state-backend/        S3 bucket for Terraform state
+│       ├── persistent/           ECR and the GitHub OIDC role
+│       └── platform/             VPC and EKS (created and destroyed per session)
 │
 ├── deploy/                       Kubernetes: everything that runs in a cluster
 │   ├── apps/taskboard/
@@ -121,6 +121,7 @@ Keeping these apart means each pipeline runs only for its own directory, and a r
 | [docs/local-development.md](docs/local-development.md) | Docker Compose in depth: build, test, networking, volumes, configuration, API, troubleshooting |
 | [docs/kubernetes-local.md](docs/kubernetes-local.md) | Deploying to a local kind cluster: inspect, logs, network tests, troubleshooting |
 | [docs/gitops-local.md](docs/gitops-local.md) | ArgoCD on the local cluster: app of apps, sync order, drift correction, rollback |
+| [docs/infrastructure.md](docs/infrastructure.md) | Terraform on AWS: architecture, prerequisites, cost estimate, billable resources, deploy and destroy steps |
 | [.github/workflows/README.md](.github/workflows/README.md) | What the CI pipeline checks and when each job runs |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Branching strategy, commit conventions, pull requests, keeping secrets out of Git |
 
