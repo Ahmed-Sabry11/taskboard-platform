@@ -1,0 +1,192 @@
+name: CI
+
+# Runs on every pull request and again on main after a merge.
+# Each job runs only when the files it covers have changed. The final "ci-ok"
+# job is the single required status check for the main branch.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# The pipeline only reads the repository. It holds no cloud credentials.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  TRIVY_IMAGE: aquasec/trivy:0.75.0
+  GITLEAKS_IMAGE: ghcr.io/gitleaks/gitleaks:v8.30.1
+  KUBECONFORM_IMAGE: ghcr.io/yannh/kubeconform:v0.8.0
+
+jobs:
+  changes:
+    name: Detect changed areas
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      stack: ${{ steps.filter.outputs.stack }}
+      config: ${{ steps.filter.outputs.config }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: filter
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "$EVENT" = "pull_request" ]; then
+            changed=$(git diff --name-only "$BASE"...HEAD)
+          else
+            # On main, check everything.
+            changed=$(git ls-files)
+          fi
+          echo "Changed files:"
+          echo "$changed" | sed 's/^/  /'
+
+          has() { echo "$changed" | grep -qE "$1" && echo true || echo false; }
+          shared='^(docker-compose\.yml|\.env\.example|docker/|\.github/workflows/)'
+          {
+            echo "backend=$(has "^app/backend/|$shared")"
+            echo "frontend=$(has "^app/frontend/|$shared")"
+            echo "stack=$(has "^app/|^scripts/smoke-test\.ps1|$shared")"
+            echo "config=$(has "^deploy/|Dockerfile|^\.github/workflows/")"
+          } >> "$GITHUB_OUTPUT"
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Full history: a secret removed in a later commit is still exposed.
+          fetch-depth: 0
+      - name: Scan the Git history with Gitleaks
+        run: |
+          docker run --rm -v "$PWD:/repo" \
+            -e GIT_CONFIG_COUNT=1 \
+            -e GIT_CONFIG_KEY_0=safe.directory \
+            -e GIT_CONFIG_VALUE_0=/repo \
+            "$GITLEAKS_IMAGE" git --redact --no-banner /repo
+
+  backend:
+    name: Backend lint and tests
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Create the local environment file
+        run: cp .env.example .env
+      - name: Build the test image
+        run: docker compose --profile test build backend-tests
+      - name: Lint
+        run: docker compose --profile test run --rm --no-deps backend-tests ruff check --no-cache .
+      - name: Unit and integration tests against PostgreSQL
+        run: docker compose --profile test run --rm backend-tests
+      - name: Clean up
+        if: always()
+        run: docker compose --profile test down -v
+
+  frontend:
+    name: Frontend typecheck and tests
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Create the local environment file
+        run: cp .env.example .env
+      - name: Build the test image
+        run: docker compose --profile test build frontend-tests
+      - name: Typecheck
+        run: docker compose --profile test run --rm frontend-tests npm run typecheck
+      - name: Unit and integration tests
+        run: docker compose --profile test run --rm frontend-tests
+
+  stack:
+    name: Build, scan and smoke-test images
+    needs: changes
+    if: needs.changes.outputs.stack == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Create the local environment file
+        run: cp .env.example .env
+      - name: Build the production images
+        run: docker compose build
+      - name: Scan images for fixable high and critical vulnerabilities
+        run: |
+          for image in taskboard-backend:local taskboard-frontend:local; do
+            echo "::group::Trivy $image"
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "$TRIVY_IMAGE" \
+              image --quiet --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed \
+              --exit-code 1 "$image"
+            echo "::endgroup::"
+          done
+      - name: Start the stack
+        run: docker compose up -d
+      - name: Smoke test
+        shell: pwsh
+        run: ./scripts/smoke-test.ps1
+      - name: Show logs on failure
+        if: failure()
+        run: |
+          docker compose ps -a
+          docker compose logs --no-color --tail 200
+      - name: Clean up
+        if: always()
+        run: docker compose down -v
+
+  config:
+    name: Validate Dockerfiles and Kubernetes manifests
+    needs: changes
+    if: needs.changes.outputs.config == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Scan configuration for high and critical misconfigurations
+        run: |
+          docker run --rm -v "$PWD:/repo" "$TRIVY_IMAGE" \
+            config --quiet --severity HIGH,CRITICAL --exit-code 1 /repo
+      - name: Render the local overlay
+        run: |
+          overlay=deploy/apps/taskboard/overlays/local
+          # The credentials file is git-ignored. The template stands in for it.
+          cp "$overlay/secrets.env.example" "$overlay/secrets.env"
+          kubectl kustomize "$overlay" > rendered.yaml
+          echo "Rendered $(grep -c '^kind:' rendered.yaml) resources"
+      - name: Validate the rendered manifests against the Kubernetes schema
+        run: docker run --rm -i "$KUBECONFORM_IMAGE" -strict -summary - < rendered.yaml
+
+  ci-ok:
+    name: ci-ok
+    # Always runs, so the required check is never left pending when jobs are
+    # skipped. Passes only if every job above succeeded or was skipped.
+    if: always()
+    needs: [changes, secrets, backend, frontend, stack, config]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check job results
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Job results: $RESULTS"
+          for result in $RESULTS; do
+            case "$result" in
+              success | skipped) ;;
+              *) echo "A job did not pass: $result"; exit 1 ;;
+            esac
+          done

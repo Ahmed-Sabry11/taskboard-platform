@@ -50,6 +50,11 @@ RUN groupadd --system --gid 10001 app \
 # Only the virtualenv crosses over: pip caches and build tooling stay behind.
 COPY --from=builder /opt/venv /opt/venv
 
+# pip is not needed at run time, and the libraries it bundles show up in
+# vulnerability scans. Remove it from the virtualenv and from the base image.
+RUN python -m pip uninstall -y pip \
+    && /usr/local/bin/python -m pip uninstall -y pip
+
 # Files stay owned by root, so the application user cannot modify its own code.
 COPY alembic.ini .
 COPY migrations ./migrations
