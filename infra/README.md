@@ -2,35 +2,51 @@
 
 Everything that exists in AWS is defined here. Nothing is created by hand in the console.
 
-**Status:** not started. This file describes the planned layout (Milestone 4).
+**Status:** code complete, validated, and plan-tested against a mocked provider. Not yet applied to an AWS account.
 
-## Planned layout
+Design, costs, and step-by-step commands are in [docs/infrastructure.md](../docs/infrastructure.md). Read its cost section before running `terraform apply`.
+
+## Layout
 
 ```
 infra/
+├── backend.hcl.example      Where state is stored (copy to backend.hcl)
 ├── modules/                 Reusable building blocks, no state of their own
-│   ├── network/             VPC, subnets, NAT gateway, route tables
-│   ├── eks/                 Cluster, node group, add-ons, access entries
-│   ├── rds/                 PostgreSQL instance, subnet group, security group
-│   ├── ecr/                 Image repositories and lifecycle rules
-│   └── iam/                 GitHub OIDC role, pod identity roles
-└── stacks/                  Deployable units, each with its own remote state
-    ├── persistent/          State bucket, ECR, OIDC role, budget alarm
-    ├── platform/            VPC, EKS, RDS
-    └── bootstrap/           ArgoCD and the root Application
+│   ├── network/             VPC, subnets, internet and NAT gateways, routes
+│   ├── iam/                 Cluster and node roles, or reuse of existing ones
+│   ├── github-oidc/         Keyless access for GitHub Actions
+│   ├── ecr/                 Image repositories
+│   ├── eks/                 Cluster, add-ons, node group, KMS key, logs
+│   └── security/            Load balancer security group and rules
+└── stacks/                  Deployable units, each with its own state
+    ├── state-backend/       The S3 state bucket
+    ├── persistent/          ECR and the GitHub Actions role
+    └── platform/            Network and cluster
 ```
 
-| Stack | Lifetime | Why it is separate |
-|---|---|---|
-| `persistent` | Created once, kept | Costs almost nothing. Holds the state bucket and image registry the others depend on. |
-| `platform` | Created per work session, destroyed after | Holds everything expensive. |
-| `bootstrap` | Follows `platform` | Its providers need a cluster that already exists. |
+| Stack | Lifetime | Cost | Why it is separate |
+|---|---|---|---|
+| `state-backend` | Once per account | Negligible | The bucket must exist before any other stack can store state in it |
+| `persistent` | Kept between sessions | About 0.10 USD a month | Images survive while the cluster is destroyed |
+| `platform` | Created per work session, destroyed after | About 0.24 USD an hour | Holds everything expensive |
 
 ## Rules
 
-- **State is remote.** Each stack stores its state in the S3 bucket created by `persistent`, encrypted and versioned. State files contain generated passwords in plain text and must never be committed.
-- **No secrets in variables files.** Commit `terraform.tfvars.example` with placeholders. Real `*.tfvars` files are git-ignored.
-- **Commit `.terraform.lock.hcl`.** It pins provider versions so every run uses the same ones.
-- **Plan before apply.** Pull requests show the plan. Applying happens from a workflow that needs approval.
+- **State is remote and locked.** Each stack stores its state in S3, encrypted and versioned, with a lock file. State files contain generated secrets in plain text and must never be committed.
+- **No secrets in variable files.** Commit `terraform.tfvars.example` with placeholders. Real `*.tfvars` and `backend.hcl` are git-ignored.
+- **Commit `.terraform.lock.hcl`** in each stack. It pins provider versions so every run uses the same ones.
+- **Plan, read, then apply.** Save the plan with `-out=tfplan` and apply that file, so what runs is exactly what was reviewed.
+- **Modules do not configure providers or backends.** Only stacks do.
 
-`.gitignore` and the pre-commit hook block `*.tfstate`, `*.tfvars`, `*.tfplan`, and the `.terraform/` directory.
+`.gitignore` and the pre-commit hook block `*.tfstate`, `*.tfvars`, `*.tfplan`, `backend.hcl`, and the `.terraform/` directory.
+
+## Check your changes
+
+```powershell
+terraform fmt -recursive infra
+terraform -chdir=infra/stacks/platform init -backend=false
+terraform -chdir=infra/stacks/platform validate
+terraform -chdir=infra/stacks/platform test
+```
+
+None of these contact AWS.

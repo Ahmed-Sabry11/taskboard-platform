@@ -1,0 +1,29 @@
+# Copy to terraform.tfvars (git-ignored) and adjust.
+
+region      = "us-east-1"
+project     = "taskboard"
+environment = "dev"
+
+# Your own public address, so only you can reach the Kubernetes API.
+# Find it with:  (Invoke-RestMethod https://checkip.amazonaws.com).Trim()
+cluster_endpoint_public_access_cidrs = ["203.0.113.10/32"]
+
+# Check what the region offers:  aws eks describe-cluster-versions --query "clusterVersions[].clusterVersion"
+kubernetes_version = "1.36"
+
+node_instance_types = ["t3.medium"]
+node_desired_size   = 2
+node_min_size       = 2
+node_max_size       = 4
+
+# One NAT gateway keeps the cost down. Set to false for one per Availability Zone.
+single_nat_gateway = true
+
+# ---- AWS Academy Learner Lab --------------------------------------------------
+# The lab does not allow creating IAM roles. Reuse its LabRole for both.
+# Find the ARN with:  aws iam get-role --role-name LabRole --query Role.Arn --output text
+# existing_cluster_role_arn = "arn:aws:iam::<ACCOUNT_ID>:role/LabRole"
+# existing_node_role_arn    = "arn:aws:iam::<ACCOUNT_ID>:role/LabRole"
+#
+# Only if the lab refuses to create a KMS key:
+# enable_secrets_encryption = false

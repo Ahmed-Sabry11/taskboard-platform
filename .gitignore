@@ -100,3 +100,9 @@ loadtest/results/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# ---- Terraform, project specific ----------------------------------------------
+# Names the state bucket, which contains the AWS account ID.
+backend.hcl
+# Lock files belong to stacks. Modules are initialised only to run their tests.
+infra/modules/**/.terraform.lock.hcl

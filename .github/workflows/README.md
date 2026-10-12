@@ -15,7 +15,8 @@
 | Backend lint and tests | `app/backend`, Compose files | Ruff, unit tests, integration tests against PostgreSQL |
 | Frontend typecheck and tests | `app/frontend`, Compose files | TypeScript, unit and integration tests |
 | Build, scan and smoke-test images | `app`, Compose files, smoke test | Production image build, Trivy scan for fixable HIGH and CRITICAL vulnerabilities, full stack start, `scripts/smoke-test.ps1` |
-| Validate Dockerfiles and Kubernetes manifests | `deploy`, Dockerfiles | Trivy configuration scan, Kustomize render, schema validation with kubeconform |
+| Validate Dockerfiles and Kubernetes manifests | `deploy`, `infra`, Dockerfiles | Trivy configuration scan (including Terraform), Kustomize render, schema validation with kubeconform |
+| Terraform format, validate and plan tests | `infra` | `terraform fmt`, `validate` for every stack, and plan tests against a mocked provider. Uses no AWS credentials. |
 | `ci-ok` | Always | Passes only if every job above passed or was skipped |
 
 `ci-ok` is the one required status check on `main`. Requiring the individual jobs would leave a pull request stuck whenever a job is skipped because its files did not change.

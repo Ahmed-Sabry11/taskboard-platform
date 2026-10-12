@@ -1,0 +1,16 @@
+# Copy to terraform.tfvars (git-ignored) and adjust.
+
+region            = "us-east-1"
+project           = "taskboard"
+github_repository = "Ahmed-Sabry11/taskboard-platform"
+
+# ---- Standard AWS account -----------------------------------------------------
+enable_github_oidc = true
+
+# ---- AWS Academy Learner Lab --------------------------------------------------
+# The lab does not allow creating IAM roles or identity providers.
+# Use this line instead of the one above:
+# enable_github_oidc = false
+
+# Set to true only for the final tear-down, to delete repositories that still hold images.
+ecr_force_delete = false

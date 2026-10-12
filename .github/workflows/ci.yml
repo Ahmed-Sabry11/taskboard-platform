@@ -32,6 +32,7 @@ jobs:
       frontend: ${{ steps.filter.outputs.frontend }}
       stack: ${{ steps.filter.outputs.stack }}
       config: ${{ steps.filter.outputs.config }}
+      infra: ${{ steps.filter.outputs.infra }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -56,7 +57,8 @@ jobs:
             echo "backend=$(has "^app/backend/|$shared")"
             echo "frontend=$(has "^app/frontend/|$shared")"
             echo "stack=$(has "^app/|^scripts/smoke-test\.ps1|$shared")"
-            echo "config=$(has "^deploy/|Dockerfile|^\.github/workflows/")"
+            echo "config=$(has "^deploy/|^infra/|Dockerfile|^\.github/workflows/")"
+            echo "infra=$(has "^infra/|^\.github/workflows/")"
           } >> "$GITHUB_OUTPUT"
 
   secrets:
@@ -159,7 +161,7 @@ jobs:
       - name: Scan configuration for high and critical misconfigurations
         run: |
           docker run --rm -v "$PWD:/repo" "$TRIVY_IMAGE" \
-            config --quiet --severity HIGH,CRITICAL --exit-code 1 /repo
+            config --quiet --severity HIGH,CRITICAL --exit-code 1 --skip-dirs "**/.terraform" /repo
       - name: Render the local overlay
         run: |
           kubectl kustomize deploy/apps/taskboard/overlays/local > rendered.yaml
@@ -173,12 +175,51 @@ jobs:
           docker run --rm -v "$PWD/deploy/argocd:/argocd:ro" "$KUBECONFORM_IMAGE" \
             -strict -summary -ignore-missing-schemas /argocd/root /argocd/apps
 
+  terraform:
+    name: Terraform format, validate and plan tests
+    needs: changes
+    if: needs.changes.outputs.infra == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      TF_IN_AUTOMATION: "1"
+      TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform-plugin-cache
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: 1.16.5
+          terraform_wrapper: false
+      - name: Check formatting
+        run: terraform fmt -check -recursive -diff infra
+      # Nothing below contacts AWS. The job holds no cloud credentials:
+      # stacks are validated without their backend, and plans run against
+      # a mocked provider.
+      - name: Validate every stack
+        run: |
+          mkdir -p "$TF_PLUGIN_CACHE_DIR"
+          for stack in infra/stacks/*/; do
+            echo "::group::$stack"
+            terraform -chdir="$stack" init -backend=false -input=false -lockfile=readonly
+            terraform -chdir="$stack" validate
+            echo "::endgroup::"
+          done
+      - name: Run plan tests against a mocked provider
+        run: |
+          for dir in infra/modules/*/ infra/stacks/*/; do
+            [ -d "${dir}tests" ] || continue
+            echo "::group::$dir"
+            terraform -chdir="$dir" init -backend=false -input=false
+            terraform -chdir="$dir" test
+            echo "::endgroup::"
+          done
+
   ci-ok:
     name: ci-ok
     # Always runs, so the required check is never left pending when jobs are
     # skipped. Passes only if every job above succeeded or was skipped.
     if: always()
-    needs: [changes, secrets, backend, frontend, stack, config]
+    needs: [changes, secrets, backend, frontend, stack, config, terraform]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
