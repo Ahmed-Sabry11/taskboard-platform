@@ -79,6 +79,7 @@ spec:
             failureThreshold: 2
           securityContext:
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
             capabilities:
               drop: ["ALL"]
           resources:
@@ -91,6 +92,19 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
+            # The only other paths PostgreSQL writes to: its socket and lock
+            # file, and temporary files.
+            - name: run
+              mountPath: /var/run/postgresql
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: run
+          emptyDir:
+            sizeLimit: 1Mi
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
   # One claim per pod, created automatically and kept when the pod or even
   # the StatefulSet is deleted. Uses the cluster's default StorageClass.
   volumeClaimTemplates:

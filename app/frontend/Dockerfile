@@ -30,10 +30,14 @@ RUN npm run build
 
 
 # Runs as UID 101 and listens on 8080, so it needs no root and no capabilities.
-FROM nginxinc/nginx-unprivileged:1.27-alpine AS runtime
+FROM nginxinc/nginx-unprivileged:1.31-alpine AS runtime
 
 LABEL org.opencontainers.image.title="taskboard-frontend" \
       org.opencontainers.image.description="TaskBoard web UI (React, served by NGINX)"
+
+# Pick up OS security fixes published after the base image was built.
+USER root
+RUN apk upgrade --no-cache
 
 # The image's entrypoint renders this template into /etc/nginx/conf.d at start.
 COPY nginx/default.conf.template /etc/nginx/templates/default.conf.template
