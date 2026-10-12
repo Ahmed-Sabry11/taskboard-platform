@@ -138,17 +138,35 @@ git revert <commit>
 
 Merged through a pull request like any other change. ArgoCD returns the cluster to the previous state.
 
+### A rollout loses no requests
+
+```powershell
+.\scripts\rollout-availability-test.ps1
+```
+
+The script sends a request every 100 ms, restarts the backend and frontend Deployments, and counts failures until both rollouts finish.
+
 ### Measured on this cluster
 
 | Test | Result |
 |---|---|
 | First deployment from an empty namespace | Synced and Healthy in 90 seconds |
 | Manual scale of the backend from 2 to 5 | Reverted in about 1 second |
-| Manually deleted Service | Recreated in 4 seconds |
+| Manually deleted Service | Recreated in 4 seconds, API reachable again 2 seconds later |
 | Commit changing frontend replicas from 2 to 3 | Running 19 seconds after the push, with a manual refresh |
 | `git revert` of that commit | Back to 2 replicas 18 seconds after the push |
+| Rollout of all backend and frontend pods under load | 0 failed of 245, and 0 of 250 on a second run |
 
-Without the manual refresh, add up to three minutes of polling delay to the last two rows.
+Without the manual refresh, add up to three minutes of polling delay to the two Git rows.
+
+### Two defects these tests found
+
+Both were invisible to health checks: every pod stayed `Running` and `Ready`.
+
+| Defect | Symptom | Fix |
+|---|---|---|
+| NGINX resolved the backend's address once, at start-up | After the deleted Service came back with a new address, every `/api` request timed out until the frontend pods were restarted | NGINX now resolves the name per request, cached for 10 seconds |
+| Pods shut down while traffic was still being routed to them | 4 of 192 requests failed during a rollout (2.08%) | A 5-second `preStop` delay lets the cluster stop routing to a pod before its container exits |
 
 ## How the deployment is ordered
 

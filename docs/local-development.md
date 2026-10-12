@@ -276,7 +276,7 @@ All configuration comes from environment variables, set in `.env` for local use.
 | `LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, or `ERROR` |
 | `DB_POOL_SIZE` | `5` | Hard cap on database connections per backend process (1 to 20) |
 | `TEST_DATABASE_URL` | none | Integration tests only |
-| `BACKEND_URL` | `http://backend:8000` | Frontend container: where NGINX forwards `/api` |
+| `BACKEND_URL` | `http://backend:8000` | Frontend container: where NGINX forwards `/api`. The name is resolved per request without DNS search domains, so on Kubernetes it must be the Service's full name. |
 
 ## API
 
