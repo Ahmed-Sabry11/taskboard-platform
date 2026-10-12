@@ -69,12 +69,19 @@ grafana:
       # Load dashboards from ConfigMaps labelled grafana_dashboard in any namespace.
       searchNamespace: ALL
 
+  # Grafana needs far more memory while starting than while idle. With a
+  # 256Mi limit it never finished starting: it spent all its time reclaiming
+  # memory until the liveness probe restarted it.
   resources:
     requests:
-      cpu: 50m
-      memory: 128Mi
-    limits:
+      cpu: 100m
       memory: 256Mi
+    limits:
+      memory: 1Gi
+
+  # First start runs database migrations and can take minutes on a laptop.
+  livenessProbe:
+    initialDelaySeconds: 240
 
 # ---- Exporters ----------------------------------------------------------------
 prometheus-node-exporter:
