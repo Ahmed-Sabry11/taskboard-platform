@@ -452,6 +452,23 @@ terraform -chdir=infra/stacks/state-backend destroy -var force_destroy=true
 
 The repositories and the bucket refuse to be deleted while they hold images or state files. The `apply` before each `destroy` records the permission to delete them anyway. The state bucket goes last, because the other stacks need it in order to be destroyed.
 
+### If the sign-in expires during an apply
+
+Browser sign-in lasts 12 hours. If it runs out while Terraform is working, the resources already requested keep being created in AWS, but Terraform can no longer save its state to S3 or release its lock. It writes the state to `errored.tfstate` in the stack directory instead. This happened during the second session. Nothing was lost:
+
+```powershell
+aws login
+aws s3 cp s3://<state-bucket>/platform/terraform.tfstate.tflock -
+terraform -chdir=infra/stacks/platform force-unlock <ID from the lock file>
+terraform -chdir=infra/stacks/platform state push errored.tfstate
+terraform -chdir=infra/stacks/platform plan -out=tfplan
+terraform -chdir=infra/stacks/platform apply tfplan
+```
+
+The plan showed only the two add-ons that were still being created when the session ended. Delete `errored.tfstate` afterwards: it holds the full state. It is git-ignored.
+
+To avoid this, sign in again at the start of every session instead of relying on an earlier one.
+
 ### If a destroy fails
 
 | Error | Cause | Fix |

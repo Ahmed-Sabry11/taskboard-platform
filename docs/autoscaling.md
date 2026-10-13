@@ -94,6 +94,40 @@ The descheduler was added to fix this. It restored the spread within two minutes
 
 So the honest result for a sudden node loss is: degraded for under a minute, never fully down, and back at full capacity in under 90 seconds. The target of under 1% failed requests was not met for this drill.
 
+## Measured on EKS
+
+`eu-north-1`, two `m7i-flex.large` nodes in two Availability Zones, 13 October 2026. The load came from a laptop in Egypt through the public load balancer, so every request includes that network path.
+
+### Ramp scenario
+
+| Measure | Result | Target |
+|---|---|---|
+| Requests sent | 63,108 at 197 per second | |
+| Failed requests | 0 | under 1% |
+| Response time, 95th percentile | 171 ms | under 500 ms |
+| Response time, median | 98 ms | |
+| Writes lost | 0 | 0 |
+| First scale-out | 80 s after the load started | |
+| Backend replicas | 2 → 3 → 5 → 6 → 9 → 10 | at least 6 within 3 minutes |
+| 6 replicas reached | 109 s | |
+| All 10 replicas ready | 164 s | |
+| Back to 2 replicas | 266 s after the load ended | within 10 minutes |
+
+### Node failure
+
+One EC2 instance was terminated while a request was sent every 200 ms. Replicas were spread across both nodes, and the terminated node held one backend and one frontend pod.
+
+| Measure | Result |
+|---|---|
+| Failed requests | 3 of 528 (0.57%) |
+| When they failed | Between 20 and 25 seconds after the termination |
+| Two replicas of each service ready on the surviving node | 30 seconds |
+| Replacement node created by AWS and Ready | about 3 minutes |
+
+This meets the target of under 1% that the local cluster missed (3.5%). The load balancer runs its own health checks and stopped routing to the dead pods within seconds, where the local cluster had to wait about 40 seconds for Kubernetes to declare the node dead.
+
+Screenshots of the dashboards during this session are in [evaluation/screenshots](evaluation/screenshots/), and the full results table is in [evaluation/results.md](evaluation/results.md).
+
 ## Known limitations
 
 - **The database is a single pod.** If its node fails, the application is down until the pod is rescheduled, and on EKS its volume can only attach in the same Availability Zone. The drills deliberately stopped the other node. A managed database with a standby in a second zone removes this.
