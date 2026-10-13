@@ -42,6 +42,21 @@ spec:
             summary: "A TaskBoard container keeps restarting"
             description: "Container {{ $labels.container }} in pod {{ $labels.pod }} restarted more than twice in 15 minutes."
 
+    - name: taskboard.capacity
+      rules:
+        - alert: TaskboardBackendAtMaxReplicas
+          # The autoscaler has nothing left to add. If load keeps rising,
+          # response times will too.
+          expr: |
+            kube_horizontalpodautoscaler_status_current_replicas{namespace="taskboard", horizontalpodautoscaler="backend"}
+              >= kube_horizontalpodautoscaler_spec_max_replicas{namespace="taskboard", horizontalpodautoscaler="backend"}
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: TaskBoard backend is at its maximum replica count
+            description: The backend has run at its autoscaling ceiling for 10 minutes. Raise the maximum, or look at why each pod handles so little.
+
     - name: taskboard.requests
       rules:
         - alert: TaskboardHighErrorRate

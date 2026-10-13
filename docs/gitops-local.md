@@ -111,14 +111,18 @@ kubectl -n argocd annotate application taskboard argocd.argoproj.io/refresh=norm
 Change the cluster by hand. ArgoCD puts it back.
 
 ```powershell
-kubectl -n taskboard scale deployment/backend --replicas=5
-kubectl -n taskboard get deployment backend -w
-```
-
-```powershell
 kubectl -n taskboard delete service backend
 kubectl -n taskboard get service backend
 ```
+
+Or change a value that Git defines, here an annotation that is `1` in the manifest. It is back within a second:
+
+```powershell
+kubectl -n taskboard annotate hpa backend argocd.argoproj.io/sync-wave=9 --overwrite
+kubectl -n taskboard get hpa backend -o jsonpath='{.metadata.annotations.argocd\.argoproj\.io/sync-wave}'
+```
+
+The replica count is the one thing ArgoCD does not enforce. It belongs to the autoscaler, see [autoscaling.md](autoscaling.md). The measurement below of a manual scale being reverted was taken before the autoscaler was added.
 
 ### A Git change is deployed
 
