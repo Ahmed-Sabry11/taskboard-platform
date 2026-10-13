@@ -4,6 +4,7 @@
 |---|---|
 | `smoke-test.ps1` | Checks a running stack end to end: health endpoints, a full CRUD cycle, validation, security headers, non-root users, network isolation. Works against Docker Compose and, with `-SkipComposeChecks`, against Kubernetes. |
 | `rollout-availability-test.ps1` | Sends steady traffic while Kubernetes replaces every backend and frontend pod, and reports how many requests failed. Evidence for the zero-downtime acceptance criterion. |
+| `network-policy-test.ps1` | Opens connections from inside the pods and from another namespace, and checks that exactly the intended paths are allowed. |
 | `scaling-test.ps1` | Runs a k6 load scenario and records the autoscaler's response: replica count and CPU every five seconds, time to scale out, time back to the minimum. |
 | `push-images.ps1` | Builds both images, tags them with the current Git commit, and pushes them to ECR. Stands in for the release pipeline, which the AWS account's restrictions rule out. |
 | `argocd-pause-sync.json` | Patch that turns off automatic sync on an ArgoCD Application, for experiments that ArgoCD would otherwise undo. Usage is in [docs/observability.md](../docs/observability.md). |
