@@ -4,7 +4,7 @@
 #   test     builder + dev dependencies + tests (never shipped)
 #   runtime  the image that gets deployed (default target)
 
-FROM python:3.13-slim-bookworm AS base
+FROM python:3.14-slim-bookworm AS base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
