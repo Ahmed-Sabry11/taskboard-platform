@@ -1,0 +1,32 @@
+# What to scrape, when to alert, and what to chart for TaskBoard. Kept apart
+# from the application itself, so the application still deploys on a cluster
+# that has no monitoring stack.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: taskboard-monitoring
+  namespace: argocd
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/Ahmed-Sabry11/taskboard-platform.git
+    targetRevision: main
+    path: deploy/monitoring/taskboard
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      # ServiceMonitor and PrometheusRule are defined by the monitoring
+      # application. If that has not finished yet, keep retrying instead of
+      # failing the dry run.
+      - SkipDryRunOnMissingResource=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 3m

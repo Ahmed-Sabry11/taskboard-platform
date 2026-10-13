@@ -1,0 +1,37 @@
+# Prometheus, Alertmanager, Grafana and the exporters, from the community
+# chart. The chart comes from its own repository, and its values from this one.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring
+  namespace: argocd
+spec:
+  project: platform
+  sources:
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      # Pinned. Upgrading the monitoring stack is a reviewed change to this line.
+      targetRevision: 92.3.0
+      helm:
+        valueFiles:
+          - $values/deploy/monitoring/stack/values.yaml
+    - repoURL: https://github.com/Ahmed-Sabry11/taskboard-platform.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      # The Prometheus resource definitions are too large for a client-side apply.
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 2m
