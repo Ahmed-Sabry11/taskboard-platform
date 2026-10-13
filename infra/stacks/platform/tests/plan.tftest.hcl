@@ -32,9 +32,27 @@ mock_provider "aws" {
       json = "{\"Version\":\"2012-10-17\",\"Statement\":[]}"
     }
   }
+
+  override_data {
+    target = module.ebs_csi_identity[0].data.aws_iam_policy_document.trust
+    values = {
+      json = "{\"Version\":\"2012-10-17\",\"Statement\":[]}"
+    }
+  }
+
+  override_data {
+    target = module.lb_controller_identity[0].data.aws_iam_policy_document.trust
+    values = {
+      json = "{\"Version\":\"2012-10-17\",\"Statement\":[]}"
+    }
+  }
 }
 
+# Set explicitly, so a local terraform.tfvars cannot change what is tested.
 variables {
+  region                               = "us-east-1"
+  project                              = "taskboard"
+  environment                          = "dev"
   cluster_endpoint_public_access_cidrs = ["203.0.113.10/32"]
 }
 
@@ -68,6 +86,32 @@ run "learner_lab_plans_with_existing_roles" {
   assert {
     condition     = output.iam_roles_created == { cluster = false, node = false }
     error_message = "No IAM role may be created when existing roles are supplied."
+  }
+}
+
+run "controllers_get_their_own_roles_by_default" {
+  command = plan
+
+  assert {
+    condition = (
+      length(output.pod_identity_roles) == 2 &&
+      output.pod_identity_roles["kube-system/ebs-csi-controller-sa"] == "taskboard-dev-ebs-csi" &&
+      output.pod_identity_roles["kube-system/aws-load-balancer-controller"] == "taskboard-dev-lb-controller"
+    )
+    error_message = "The storage driver and the load balancer controller must each get a dedicated role."
+  }
+}
+
+run "no_controller_roles_where_iam_is_locked_down" {
+  command = plan
+
+  variables {
+    enable_pod_identity_roles = false
+  }
+
+  assert {
+    condition     = length(output.pod_identity_roles) == 0
+    error_message = "No controller role may be created when pod identity roles are disabled."
   }
 }
 

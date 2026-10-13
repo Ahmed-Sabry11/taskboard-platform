@@ -2,7 +2,7 @@
 
 Terraform code for the AWS side of the project: network, IAM, image registry, and the EKS cluster. This document covers the design, what it costs, and how to validate, deploy, and destroy it.
 
-> **Nothing here has been applied to an AWS account.** The code has been formatted, validated, scanned, and plan-tested against a mocked provider. `terraform apply` creates billable resources and is run only after the cost section below has been read and approved.
+> **Applied and verified on 13 October 2026** in `eu-north-1`, on an AWS free plan account. The cluster came up with two nodes, `terraform plan` afterwards reported no changes, and the application was deployed to it (see [gitops-aws.md](gitops-aws.md)). `terraform apply` creates billable resources: read the cost section first.
 
 Commands are for Windows PowerShell, run from the repository root.
 
@@ -58,7 +58,7 @@ flowchart TB
 |---|---|---|
 | `state-backend` | S3 bucket for Terraform state: versioned, encrypted, private, TLS only | Once per account, kept |
 | `persistent` | 2 ECR repositories with scanning and lifecycle rules. GitHub OIDC provider and a push-only role (standard accounts only) | Kept between sessions |
-| `platform` | VPC, 2 public and 2 private subnets, internet gateway, NAT gateway with Elastic IP, route tables, security groups, IAM roles, KMS key, log group, EKS cluster, 3 add-ons, managed node group | Created per work session, destroyed after |
+| `platform` | VPC, 2 public and 2 private subnets, internet gateway, NAT gateway with Elastic IP, route tables, security groups, IAM roles, KMS key, log group, EKS cluster, managed node group, 6 add-ons (VPC CNI, kube-proxy, CoreDNS, Pod Identity agent, EBS CSI driver, metrics-server), and 2 IAM roles bound to service accounts | Created per work session, destroyed after |
 
 ### Network
 
@@ -86,6 +86,10 @@ flowchart TB
 | Cluster | The EKS service only | `AmazonEKSClusterPolicy` |
 | Node | EC2 instances only | Join the cluster, configure pod networking, **pull** images. No push, no delete. |
 | GitHub Actions | Workflows of this repository on `main` only, through OIDC | Log in to ECR and push to the two project repositories. Nothing else in the account. |
+| EBS CSI driver | Only the service account `kube-system/ebs-csi-controller-sa` in this cluster | Create, attach, and delete EBS volumes (`AmazonEBSCSIDriverPolicy`) |
+| Load balancer controller | Only the service account `kube-system/aws-load-balancer-controller` in this cluster | Manage load balancers, using the policy published with the controller release |
+
+The last two use EKS Pod Identity. A controller that calls AWS would otherwise have to borrow the node's role, and then every pod on the node could use those permissions too.
 
 No IAM user and no long-lived access key is created anywhere.
 
@@ -131,7 +135,7 @@ infra/
 | Version constraints | Terraform `>= 1.10, < 2.0`. AWS provider `~> 6.0` in stacks, `>= 6.0` in modules. Exact versions pinned in each stack's committed `.terraform.lock.hcl`. |
 | Remote state | S3, one key per stack |
 | Locking | S3 lock file (`use_lockfile = true`). No DynamoDB table is needed. |
-| Tests | 21 mocked plan tests (`terraform test`) covering both account types, defaults, and input validation |
+| Tests | 25 mocked plan tests (`terraform test`) covering both account types, defaults, and input validation |
 | Scanning | Trivy configuration scan in CI, failing on HIGH and CRITICAL findings |
 
 Three deliberate exceptions to the scanner are marked in the code with their reasons: the public load balancer accepts internet traffic, the Kubernetes API has a restricted public endpoint, and the state bucket uses S3-managed rather than customer-managed encryption.
@@ -148,9 +152,25 @@ Three deliberate exceptions to the scanner are marked in the code with their rea
 | Region | `us-east-1` assumed |
 | Quotas | Defaults are enough: 1 VPC, 1 NAT gateway, 1 Elastic IP, 2 `t3.medium` (4 vCPU) |
 
+### AWS free plan account (the one this project uses)
+
+New AWS accounts on the free plan come with credits and a set of restrictions. These were found by trying, on the account used here, and each one cost time:
+
+| Restriction | How it showed up | What to set |
+|---|---|---|
+| One region only (`eu-north-1` here) | Every call in any other region is refused by a service control policy, including read-only ones | `region = "eu-north-1"` in both variable files and in `backend.hcl` |
+| Only some instance types | The node group stayed in `CREATING` with no instances. The Auto Scaling activity log said "The specified instance type is not eligible for Free Tier". | `node_instance_types = ["m7i-flex.large"]`. List the allowed types with `aws ec2 describe-instance-types --filters Name=free-tier-eligible,Values=true` |
+| 5 vCPUs in total | Quota lookup | `node_max_size = 2` |
+| No OIDC identity providers | Refused by the service control policy | `enable_github_oidc = false`. Pod Identity is used inside the cluster instead of IAM Roles for Service Accounts. |
+| No charges to a card | By design of the plan | Spending comes out of the credits. The account stops when they run out. |
+
+IAM roles, KMS keys, EKS, ECR, NAT gateways, and load balancers are all allowed.
+
+A lesson from the instance type failure: a node group that cannot launch instances does not fail quickly. EKS waited about 30 minutes before letting the failed group be deleted. Check `aws autoscaling describe-scaling-activities` as soon as nodes are late.
+
 ### AWS Academy Learner Lab
 
-The code supports the lab, with reduced scope. These points come from the lab's general rules and **must be checked against the README inside your own lab**, because they vary by course.
+The code supports the lab, with reduced scope. Set `enable_pod_identity_roles = false` there as well. These points come from the lab's general rules and **must be checked against the README inside your own lab**, because they vary by course.
 
 | Lab rule | Effect on this project |
 |---|---|
@@ -188,6 +208,21 @@ Prices are approximate on-demand rates for `us-east-1` and change over time. Con
 | NAT data processing | 0.045 USD/GB, about 20 GB | usage | 0.90 |
 | CloudWatch log ingestion | 0.50 USD/GB, about 1 GB | usage | 0.50 |
 | **Total** | | **about 0.24** | **about 176** |
+
+### As deployed on the free plan account
+
+The free plan does not allow `t3.medium`, so the nodes are `m7i-flex.large` (2 vCPUs, 8 GB), and the region is Stockholm. Approximate list prices:
+
+| Resource | Per hour |
+|---|---|
+| EKS control plane | 0.10 |
+| 2 x `m7i-flex.large` nodes | about 0.20 |
+| NAT gateway and its Elastic IP | about 0.05 |
+| Application Load Balancer and its two public addresses, once the application is deployed | about 0.04 |
+| Disks, KMS key, logs | about 0.01 |
+| **Total** | **about 0.40** |
+
+A 100 USD credit therefore covers about 250 hours with the application deployed.
 
 ### Always-on resources
 
@@ -338,7 +373,7 @@ terraform -chdir=infra/stacks/platform init "-backend-config=../../backend.hcl"
 terraform -chdir=infra/stacks/platform plan -out=tfplan
 ```
 
-**Read the plan.** It should list 40 resources to add on a standard account, 34 in the Learner Lab (no IAM roles), and nothing to change or destroy. Then:
+**Read the plan.** It should list 49 resources to add on an account that allows IAM roles, 35 in the Learner Lab, and nothing to change or destroy. Then:
 
 ```powershell
 terraform -chdir=infra/stacks/platform apply tfplan
@@ -434,4 +469,4 @@ The repositories and the bucket refuse to be deleted while they hold images or s
 - VPC flow logs are off, to save cost. The scanner reports this at MEDIUM severity.
 - Scheduler and controller-manager logs are off, to save cost.
 - In the Learner Lab, IAM least privilege and keyless CI cannot be demonstrated live.
-- The first `apply` has not been run. Problems that only appear against real AWS, such as an unsupported Kubernetes version or a denied permission in the lab, are still possible.
+- Verified on one account type only, the AWS free plan. The standard-account path with the GitHub OIDC role, and the Learner Lab path with existing roles, are covered by plan tests but have not been applied.
