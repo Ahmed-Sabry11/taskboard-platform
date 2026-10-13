@@ -30,6 +30,9 @@ Commands are for Windows PowerShell, run from the repository root.
 | `aws-load-balancer-controller` | Chart 3.6.0 from `aws.github.io/eks-charts` | The controller that turns an Ingress into a load balancer |
 | `storage` | `deploy/platform/storage` | The default StorageClass: encrypted gp3 EBS volumes |
 | `taskboard` | `deploy/apps/taskboard/overlays/aws` | The application |
+| `monitoring` | Chart 92.3.0 from `prometheus-community.github.io/helm-charts` | Prometheus, Alertmanager, Grafana |
+| `taskboard-monitoring` | `deploy/monitoring/taskboard` | Scrape definitions, alert rules, and the dashboard |
+| `descheduler` | Chart 0.37.0 from `kubernetes-sigs.github.io/descheduler` | Keeps replicas spread across the nodes |
 
 ### What differs from the local cluster
 
@@ -81,10 +84,14 @@ kubectl --context eks-taskboard -n argocd wait --for=condition=Available deploym
 kubectl --context eks-taskboard apply -f deploy/apps/taskboard/base/namespace.yaml
 kubectl --context eks-taskboard -n taskboard create secret generic taskboard-db-credentials --from-env-file=deploy/apps/taskboard/overlays/local/secrets.env
 
+kubectl --context eks-taskboard create namespace monitoring
+$password = -join ((48..57) + (65..90) + (97..122) | Get-Random -Count 24 | ForEach-Object { [char]$_ })
+kubectl --context eks-taskboard -n monitoring create secret generic grafana-admin --from-literal=admin-user=admin --from-literal=admin-password=$password
+
 kubectl --context eks-taskboard apply -f deploy/argocd/root/aws.yaml
 ```
 
-The Secret is created by hand because credentials are never in Git, exactly as on the local cluster.
+The two Secrets (database credentials and the Grafana login) are created by hand because credentials are never in Git, exactly as on the local cluster. Sign in again with `aws login` before starting: a session that expires halfway through an apply is recoverable, but costs time (see [infrastructure.md](infrastructure.md)).
 
 ### 4. Find the address and verify
 
@@ -144,6 +151,11 @@ Region `eu-north-1`, two `m7i-flex.large` nodes, Kubernetes 1.36, 13 October 202
 | Pods spread | One backend and one frontend replica on each node, in different zones |
 | Load balancer targets | All four pods registered by IP and healthy |
 | `terraform plan` after apply | No changes |
+| Second session, everything from `main`: root application applied to all seven applications Synced and Healthy | 155 seconds |
+| Network policy test on EKS | 11 of 11 |
+| Load test, node failure drill | See [autoscaling.md](autoscaling.md) |
+
+All results against the acceptance criteria are in [evaluation/results.md](evaluation/results.md).
 
 ## Known limitations
 

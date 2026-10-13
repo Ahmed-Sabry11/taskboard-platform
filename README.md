@@ -24,9 +24,9 @@ The deliverable is the platform: infrastructure as code, a CI pipeline, GitOps d
 | M3 | Local Kubernetes and GitOps with ArgoCD | Done |
 | M4 | AWS infrastructure with Terraform | Done. Applied and verified in `eu-north-1` |
 | M5 | GitOps on EKS | Done. Application served through a public load balancer, deployed by ArgoCD |
-| M6 | Observability | Done on the local cluster |
-| M7 | Auto-scaling and resilience | Done on the local cluster. Measurement on EKS pending |
-| M8 | Hardening and evaluation | Hardening done on the local cluster. Final evaluation pending |
+| M6 | Observability | Done, on the local cluster and on EKS |
+| M7 | Auto-scaling and resilience | Done, measured on the local cluster and on EKS |
+| M8 | Hardening and evaluation | Done. 21 of 29 acceptance criteria met, see [docs/evaluation/results.md](docs/evaluation/results.md) |
 
 Milestones are defined in [docs/architecture.md](docs/architecture.md).
 
@@ -122,6 +122,7 @@ Keeping these apart means each pipeline runs only for its own directory, and a r
 | [docs/kubernetes-local.md](docs/kubernetes-local.md) | Deploying to a local kind cluster: inspect, logs, network tests, troubleshooting |
 | [docs/gitops-local.md](docs/gitops-local.md) | ArgoCD on the local cluster: app of apps, sync order, drift correction, rollback |
 | [docs/gitops-aws.md](docs/gitops-aws.md) | Deploying to EKS: load balancer, storage, bring-up and tear-down order, measurements |
+| [docs/evaluation/results.md](docs/evaluation/results.md) | Every acceptance criterion with its measured result, and the screenshots taken on AWS |
 | [docs/security.md](docs/security.md) | Every security control by layer, how each was verified, and what could not be demonstrated |
 | [docs/autoscaling.md](docs/autoscaling.md) | Autoscaler settings, load tests, failure drills, and measured results |
 | [docs/observability.md](docs/observability.md) | Prometheus and Grafana: metrics, dashboard, alerts, and how each was verified |

@@ -58,7 +58,7 @@ Defined in `deploy/apps/taskboard/base/network-policies.yaml`. Everything is den
                          Prometheus
 ```
 
-Verified on the local cluster with `scripts/network-policy-test.ps1`, 11 of 11 checks:
+Verified with `scripts/network-policy-test.ps1`, 11 of 11 checks, on the local cluster and on EKS. The two clusters enforce policies with different network plugins, and the results were identical:
 
 | Connection | Result |
 |---|---|
@@ -129,7 +129,6 @@ From section 14 of [architecture.md](architecture.md).
 |---|---|---|
 | HTTPS | No domain name | A domain, an ACM certificate, a 443 listener, and a redirect from 80 |
 | CI pushing images through OIDC | The AWS account's policy forbids OIDC identity providers | A standard AWS account. The Terraform module exists and is plan-tested. |
-| Network policies on EKS | Verified locally so far | Run `scripts/network-policy-test.ps1 -Context eks-taskboard` in the next AWS session |
 | Secrets from a secrets manager | Database credentials are created with one `kubectl` command | External Secrets Operator with AWS Secrets Manager |
 | Application authentication | Out of scope for the demo workload | The API is open to anyone who can reach it |
 | VPC flow logs | Left off to save cost | One Terraform resource |
