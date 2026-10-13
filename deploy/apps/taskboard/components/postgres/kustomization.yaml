@@ -7,3 +7,4 @@ kind: Component
 resources:
   - service.yaml
   - statefulset.yaml
+  - network-policy.yaml

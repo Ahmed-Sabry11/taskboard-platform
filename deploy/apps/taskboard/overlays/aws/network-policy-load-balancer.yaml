@@ -1,0 +1,26 @@
+# On AWS the load balancer sends /api requests straight to the backend pods,
+# from its own addresses in the public subnets. Those are not pods, so they
+# are allowed by address range. Policies add up: this opens one more path
+# without loosening the ones in the base.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: backend-from-load-balancer
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: backend
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        # The two public subnets defined in infra/stacks/platform.
+        - ipBlock:
+            cidr: 10.0.0.0/24
+        - ipBlock:
+            cidr: 10.0.1.0/24
+      ports:
+        - protocol: TCP
+          port: 8000

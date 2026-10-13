@@ -4,7 +4,7 @@
 #   build    deps + source, produces the static bundle
 #   runtime  NGINX serving the bundle (default target, contains no Node.js)
 
-FROM node:22-alpine AS deps
+FROM node:24-alpine AS deps
 
 WORKDIR /app
 RUN chown node:node /app

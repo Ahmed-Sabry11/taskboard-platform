@@ -1,0 +1,62 @@
+# Dependabot opens pull requests for outdated or vulnerable dependencies.
+# Each one runs the full CI pipeline, so an update that breaks something is
+# caught before it can be merged.
+#
+# Security updates are opened as soon as an advisory is published. The
+# schedule below is for routine version updates, kept monthly and limited so
+# the repository is not flooded.
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /app/frontend
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "build(deps)"
+    groups:
+      frontend:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  - package-ecosystem: pip
+    directory: /app/backend
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "build(deps)"
+    groups:
+      backend:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  - package-ecosystem: docker
+    directories:
+      - /app/backend
+      - /app/frontend
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: "build(deps)"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: "ci(deps)"
+
+  - package-ecosystem: terraform
+    directories:
+      - /infra/stacks/state-backend
+      - /infra/stacks/persistent
+      - /infra/stacks/platform
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: "build(deps)"
