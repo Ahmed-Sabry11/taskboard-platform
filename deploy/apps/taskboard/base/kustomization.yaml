@@ -11,6 +11,8 @@ resources:
   - frontend-deployment.yaml
   - frontend-service.yaml
   - migrate-job.yaml
+  - autoscaling.yaml
+  - disruption-budgets.yaml
 
 labels:
   - pairs:

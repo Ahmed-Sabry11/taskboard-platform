@@ -8,7 +8,8 @@ metadata:
     app.kubernetes.io/name: backend
     app.kubernetes.io/component: api
 spec:
-  replicas: 2
+  # No replica count here: the HorizontalPodAutoscaler owns it. A fixed number
+  # in Git would make ArgoCD undo every scaling decision.
   revisionHistoryLimit: 3
   selector:
     matchLabels:
@@ -34,6 +35,17 @@ spec:
         runAsGroup: 10001
         seccompProfile:
           type: RuntimeDefault
+      # When a node stops responding, move its pods after 30 seconds instead
+      # of the default 5 minutes.
+      tolerations:
+        - key: node.kubernetes.io/not-ready
+          operator: Exists
+          effect: NoExecute
+          tolerationSeconds: 30
+        - key: node.kubernetes.io/unreachable
+          operator: Exists
+          effect: NoExecute
+          tolerationSeconds: 30
       topologySpreadConstraints:
         - maxSkew: 1
           topologyKey: kubernetes.io/hostname
