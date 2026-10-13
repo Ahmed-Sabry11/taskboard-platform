@@ -1,0 +1,22 @@
+flowchart LR
+    visitors(["Visitors"])
+    other(["Other namespaces"])
+    internet(["Internet"])
+    prom["Prometheus"]
+
+    subgraph ns["namespace taskboard, default deny"]
+        fe["frontend"]
+        be["backend"]
+        db[("database")]
+    end
+
+    visitors -->|"8080 allowed"| fe
+    fe -->|"8000 allowed"| be
+    be -->|"5432 allowed"| db
+    prom -->|"8000 allowed"| be
+
+    fe -. "blocked" .-x db
+    other -. "blocked" .-x be
+    other -. "blocked" .-x db
+    be -. "blocked" .-x internet
+    fe -. "blocked" .-x internet
