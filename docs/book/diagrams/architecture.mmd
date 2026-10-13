@@ -1,0 +1,48 @@
+flowchart TB
+    user(["End user"])
+    dev(["Developer"])
+
+    subgraph github["GitHub"]
+        repo["Repository<br/>app / infra / deploy"]
+        ci["GitHub Actions<br/>tests and security scans"]
+    end
+
+    subgraph aws["AWS, region eu-north-1"]
+        ecr["ECR<br/>container images"]
+        s3["S3<br/>Terraform state"]
+        kms["KMS key"]
+
+        subgraph vpc["VPC 10.0.0.0/16, two Availability Zones"]
+            subgraph pub["Public subnets"]
+                alb["Application<br/>Load Balancer"]
+                nat["NAT gateway"]
+            end
+            subgraph priv["Private subnets: EKS cluster, two nodes"]
+                subgraph nsapp["namespace taskboard"]
+                    fe["frontend pods"]
+                    be["backend pods"]
+                    db[("PostgreSQL<br/>EBS volume")]
+                    hpa["Horizontal Pod<br/>Autoscaler"]
+                end
+                argo["ArgoCD"]
+                mon["Prometheus<br/>Grafana"]
+            end
+        end
+    end
+
+    dev -->|"pull request"| repo
+    repo --> ci
+    ci -->|"required check"| repo
+    dev -->|"terraform apply"| aws
+    dev -->|"push images"| ecr
+    argo -->|"pulls desired state"| repo
+    argo -->|"deploys"| nsapp
+    ecr -.->|"image pull"| priv
+    user -->|"HTTP"| alb
+    alb -->|"/"| fe
+    alb -->|"/api"| be
+    fe -->|"/api"| be
+    be --> db
+    hpa -.->|"scales"| be
+    mon -.->|"scrapes"| be
+    priv -->|"outbound only"| nat

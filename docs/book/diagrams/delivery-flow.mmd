@@ -1,0 +1,19 @@
+sequenceDiagram
+    autonumber
+    participant D as Developer
+    participant G as GitHub
+    participant C as CI pipeline
+    participant A as ArgoCD
+    participant K as Cluster
+
+    D->>G: Open pull request
+    G->>C: Run pipeline
+    C-->>G: Tests, image scan, secret scan, manifest checks
+    Note over G: Merge is blocked until ci-ok passes
+    D->>G: Merge to main
+    A->>G: Detect new commit
+    A->>K: Apply configuration and database
+    A->>K: Run migration job
+    A->>K: Rolling update of backend and frontend
+    K-->>A: Healthy and Synced
+    Note over C,K: The pipeline never holds cluster credentials
