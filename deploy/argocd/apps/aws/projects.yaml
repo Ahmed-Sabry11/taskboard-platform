@@ -33,6 +33,7 @@ spec:
   sourceRepos:
     - https://github.com/Ahmed-Sabry11/taskboard-platform.git
     - https://aws.github.io/eks-charts
+    - https://kubernetes-sigs.github.io/descheduler/
   destinations:
     - server: https://kubernetes.default.svc
       namespace: kube-system

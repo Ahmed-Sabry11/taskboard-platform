@@ -1,0 +1,61 @@
+# Descheduler: every two minutes, checks whether a service's pods have ended up
+# crowded onto one node, and if so evicts one so that it is rescheduled
+# elsewhere.
+#
+# Kubernetes spreads pods across nodes only at the moment it schedules them.
+# After the autoscaler shrank the backend from 10 pods to 2, both survivors
+# were on the same node, and stopping that node took the whole API down for
+# 85 seconds. This keeps the spread true over time.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: descheduler
+  namespace: argocd
+spec:
+  project: platform
+  source:
+    repoURL: https://kubernetes-sigs.github.io/descheduler/
+    chart: descheduler
+    targetRevision: 0.37.0
+    helm:
+      valuesObject:
+        kind: CronJob
+        schedule: "*/2 * * * *"
+        deschedulerPolicy:
+          profiles:
+            - name: default
+              pluginConfig:
+                - name: DefaultEvictor
+                  args:
+                    podProtections:
+                      # The application pods use emptyDir scratch space, which
+                      # by default would exempt them from eviction.
+                      defaultDisabled:
+                        - PodsWithLocalStorage
+                      # Never evict a pod with a persistent volume: the database.
+                      extraEnabled:
+                        - PodsWithPVC
+                - name: RemovePodsViolatingTopologySpreadConstraint
+                  args:
+                    # Act on the soft constraints the application declares too.
+                    constraints:
+                      - DoNotSchedule
+                      - ScheduleAnyway
+                    namespaces:
+                      include:
+                        - taskboard
+              # Only this one job. The chart's other defaults (packing nodes,
+              # evicting restarting pods) are switched off.
+              plugins:
+                balance:
+                  enabled:
+                    - RemovePodsViolatingTopologySpreadConstraint
+                deschedule:
+                  enabled: []
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

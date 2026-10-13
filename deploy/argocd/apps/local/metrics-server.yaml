@@ -1,0 +1,28 @@
+# metrics-server: reports each pod's current CPU and memory to Kubernetes.
+# The Horizontal Pod Autoscaler and "kubectl top" depend on it.
+#
+# Local cluster only. On EKS it is installed as a managed add-on by Terraform.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: metrics-server
+  namespace: argocd
+spec:
+  project: platform
+  source:
+    repoURL: https://kubernetes-sigs.github.io/metrics-server/
+    chart: metrics-server
+    targetRevision: 3.14.0
+    helm:
+      valuesObject:
+        args:
+          # kind nodes use self-signed kubelet certificates that cannot be
+          # verified. Acceptable on a laptop, never set on a real cluster.
+          - --kubelet-insecure-tls
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

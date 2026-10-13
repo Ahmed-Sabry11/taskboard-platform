@@ -57,7 +57,7 @@ jobs:
             echo "backend=$(has "^app/backend/|$shared")"
             echo "frontend=$(has "^app/frontend/|$shared")"
             echo "stack=$(has "^app/|^scripts/smoke-test\.ps1|$shared")"
-            echo "config=$(has "^deploy/|^infra/|Dockerfile|^\.github/workflows/")"
+            echo "config=$(has "^deploy/|^infra/|^loadtest/|Dockerfile|^\.github/workflows/")"
             echo "infra=$(has "^infra/|^\.github/workflows/")"
           } >> "$GITHUB_OUTPUT"
 
@@ -179,6 +179,8 @@ jobs:
           kubectl kustomize deploy/monitoring/taskboard > monitoring.yaml
           docker run --rm -i "$KUBECONFORM_IMAGE" -strict -summary -ignore-missing-schemas - < monitoring.yaml
           python3 -c "import json; d = json.load(open('deploy/monitoring/taskboard/dashboards/taskboard.json')); print('dashboard', d['uid'], 'with', len(d['panels']), 'panels')"
+      - name: Check the load test script
+        run: docker run --rm -v "$PWD/loadtest:/scripts:ro" grafana/k6:2.3.0 inspect /scripts/taskboard.js > /dev/null
       - name: Validate the ArgoCD definitions
         # ArgoCD's own resource types are not in the Kubernetes schema, so
         # they are checked for well-formed YAML and skipped by the validator.
