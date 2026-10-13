@@ -10,6 +10,7 @@ namespace: taskboard
 resources:
   - ../../base
   - ingress.yaml
+  - network-policy-load-balancer.yaml
 
 components:
   - ../../components/postgres

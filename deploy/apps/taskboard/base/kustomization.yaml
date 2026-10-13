@@ -13,6 +13,7 @@ resources:
   - migrate-job.yaml
   - autoscaling.yaml
   - disruption-budgets.yaml
+  - network-policies.yaml
 
 labels:
   - pairs:
