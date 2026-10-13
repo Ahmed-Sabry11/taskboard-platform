@@ -15,8 +15,13 @@
 param(
     [string]$Url = 'http://127.0.0.1:8090/api/readyz',
     [string]$Namespace = 'taskboard',
+    # kubectl context of the cluster to restart pods in. Empty uses the current one.
+    [string]$Context = '',
     [int]$IntervalMs = 100
 )
+
+$kubectlArgs = @('-n', $Namespace)
+if ($Context) { $kubectlArgs = @('--context', $Context) + $kubectlArgs }
 
 $total = 0
 $failed = 0
@@ -46,12 +51,12 @@ if ($failed -gt 0) {
 }
 
 Write-Host "Restarting backend and frontend, sending a request every $IntervalMs ms"
-kubectl -n $Namespace rollout restart deployment/backend deployment/frontend | Out-Null
+kubectl @kubectlArgs rollout restart deployment/backend deployment/frontend | Out-Null
 $rollout = Start-Job -ScriptBlock {
-    param($ns)
-    kubectl -n $ns rollout status deployment/backend --timeout=300s | Out-Null
-    kubectl -n $ns rollout status deployment/frontend --timeout=300s | Out-Null
-} -ArgumentList $Namespace
+    param($kubectlArgs)
+    kubectl @kubectlArgs rollout status deployment/backend --timeout=600s | Out-Null
+    kubectl @kubectlArgs rollout status deployment/frontend --timeout=600s | Out-Null
+} -ArgumentList (, $kubectlArgs)
 
 $timer = [Diagnostics.Stopwatch]::StartNew()
 while ($rollout.State -eq 'Running') {

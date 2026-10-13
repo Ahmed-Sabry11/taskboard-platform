@@ -162,12 +162,16 @@ jobs:
         run: |
           docker run --rm -v "$PWD:/repo" "$TRIVY_IMAGE" \
             config --quiet --severity HIGH,CRITICAL --exit-code 1 --skip-dirs "**/.terraform" /repo
-      - name: Render the local overlay
+      - name: Render every overlay and validate against the Kubernetes schema
         run: |
-          kubectl kustomize deploy/apps/taskboard/overlays/local > rendered.yaml
-          echo "Rendered $(grep -c '^kind:' rendered.yaml) resources"
-      - name: Validate the rendered manifests against the Kubernetes schema
-        run: docker run --rm -i "$KUBECONFORM_IMAGE" -strict -summary - < rendered.yaml
+          for overlay in deploy/apps/taskboard/overlays/*/; do
+            echo "::group::$overlay"
+            kubectl kustomize "$overlay" > rendered.yaml
+            echo "Rendered $(grep -c '^kind:' rendered.yaml) resources"
+            docker run --rm -i "$KUBECONFORM_IMAGE" -strict -summary - < rendered.yaml
+            echo "::endgroup::"
+          done
+          docker run --rm -v "$PWD/deploy/platform:/platform:ro" "$KUBECONFORM_IMAGE" -strict -summary /platform
       - name: Render and validate the monitoring definitions
         # ServiceMonitor and PrometheusRule are custom types: checked for
         # well-formed YAML, skipped by the schema validator.

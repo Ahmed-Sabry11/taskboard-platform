@@ -7,8 +7,9 @@ github_repository = "Ahmed-Sabry11/taskboard-platform"
 # ---- Standard AWS account -----------------------------------------------------
 enable_github_oidc = true
 
-# ---- AWS Academy Learner Lab --------------------------------------------------
-# The lab does not allow creating IAM roles or identity providers.
+# ---- AWS free plan account, or AWS Academy Learner Lab -------------------------
+# Neither allows creating an OIDC identity provider. On the free plan also set
+# region = "eu-north-1" (or whichever single region the account is given).
 # Use this line instead of the one above:
 # enable_github_oidc = false
 

@@ -10,8 +10,9 @@ namespace: taskboard
 
 resources:
   - ../../base
-  - postgres-service.yaml
-  - postgres-statefulset.yaml
+
+components:
+  - ../../components/postgres
 
 # Images built by "docker compose build" and loaded into the cluster.
 images:

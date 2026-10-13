@@ -1,0 +1,96 @@
+# Amazon EKS: the base application with images from ECR, an Application Load
+# Balancer in front, and PostgreSQL in the cluster on an EBS volume.
+#
+# Deployed by ArgoCD. See docs/gitops-aws.md.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: taskboard
+
+resources:
+  - ../../base
+  - ingress.yaml
+
+components:
+  - ../../components/postgres
+
+# The tag is the Git commit the images were built from. Changing it, through
+# a pull request, is what deploys a new version.
+images:
+  - name: taskboard-backend
+    newName: 499743054543.dkr.ecr.eu-north-1.amazonaws.com/taskboard/backend
+    newTag: 9f3f3af
+  - name: taskboard-frontend
+    newName: 499743054543.dkr.ecr.eu-north-1.amazonaws.com/taskboard/frontend
+    newTag: 9f3f3af
+
+configMapGenerator:
+  - name: backend-config
+    behavior: merge
+    literals:
+      - DB_HOST=postgres
+
+# The taskboard-db-credentials Secret is not defined here: credentials are
+# never in Git. It is created once with kubectl, as on the local cluster.
+
+patches:
+  # Hold a new pod out of "Ready" until the load balancer has registered it
+  # and seen it healthy. Without this, a rollout can remove old pods before
+  # the load balancer is sending traffic to the new ones.
+  - patch: |-
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: taskboard
+        labels:
+          elbv2.k8s.aws/pod-readiness-gate-inject: enabled
+
+  # Each target group checks the endpoint that reflects its own service.
+  - patch: |-
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: backend
+        annotations:
+          alb.ingress.kubernetes.io/healthcheck-path: /api/healthz
+  - patch: |-
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: frontend
+        annotations:
+          alb.ingress.kubernetes.io/healthcheck-path: /healthz
+
+  # A stopping pod keeps serving for 20 seconds, instead of the base's 5,
+  # because a load balancer outside the cluster takes longer to stop routing
+  # to it than the cluster's own network does.
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: backend
+      spec:
+        template:
+          spec:
+            terminationGracePeriodSeconds: 45
+            containers:
+              - name: backend
+                lifecycle:
+                  preStop:
+                    sleep:
+                      seconds: 20
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: frontend
+      spec:
+        template:
+          spec:
+            terminationGracePeriodSeconds: 45
+            containers:
+              - name: frontend
+                lifecycle:
+                  preStop:
+                    sleep:
+                      seconds: 20

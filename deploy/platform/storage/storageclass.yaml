@@ -1,0 +1,19 @@
+# The default kind of disk for PersistentVolumeClaims on EKS: an encrypted gp3
+# EBS volume. EKS clusters come with no default StorageClass, and a claim
+# without one stays Pending forever.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gp3
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: ebs.csi.aws.com
+parameters:
+  type: gp3
+  encrypted: "true"
+# Create the volume only once the pod is scheduled, so it lands in the same
+# Availability Zone as the node. An EBS volume cannot move between zones.
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+# Deleting the claim deletes the volume, so no disks are left behind and billed.
+reclaimPolicy: Delete

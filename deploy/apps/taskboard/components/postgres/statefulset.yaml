@@ -1,5 +1,6 @@
-# PostgreSQL for local testing only. On AWS the database is RDS and this
-# file is not used.
+# PostgreSQL inside the cluster: one pod with a persistent volume. Used on the
+# local cluster and, for now, on EKS. There are no replicas and no backups.
+# A production setup would use a managed database instead.
 #
 # A StatefulSet rather than a Deployment: the pod keeps a stable name
 # (postgres-0) and is always re-attached to the same PersistentVolumeClaim.

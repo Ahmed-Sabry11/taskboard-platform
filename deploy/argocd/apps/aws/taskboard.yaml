@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: taskboard
+  namespace: argocd
+spec:
+  project: taskboard
+  source:
+    repoURL: https://github.com/Ahmed-Sabry11/taskboard-platform.git
+    targetRevision: main
+    path: deploy/apps/taskboard/overlays/aws
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: taskboard
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      # Generous, because on a new cluster the application waits for the
+      # storage class and the load balancer controller to appear first.
+      limit: 10
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 3m

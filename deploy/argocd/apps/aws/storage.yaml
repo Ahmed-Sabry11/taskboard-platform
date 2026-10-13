@@ -1,0 +1,19 @@
+# Cluster-wide storage settings: the default StorageClass.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: storage
+  namespace: argocd
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/Ahmed-Sabry11/taskboard-platform.git
+    targetRevision: main
+    path: deploy/platform/storage
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

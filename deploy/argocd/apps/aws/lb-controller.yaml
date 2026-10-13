@@ -1,0 +1,53 @@
+# AWS Load Balancer Controller: watches Ingress objects and creates
+# Application Load Balancers for them.
+#
+# Its AWS permissions come from an IAM role that Terraform binds to the
+# service account kube-system/aws-load-balancer-controller. Nothing here
+# refers to a role, a key, or an account.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: aws-load-balancer-controller
+  namespace: argocd
+spec:
+  project: platform
+  source:
+    repoURL: https://aws.github.io/eks-charts
+    chart: aws-load-balancer-controller
+    # Pinned. Must match the version of the IAM policy in
+    # infra/stacks/platform/policies.
+    targetRevision: 3.6.0
+    helm:
+      valuesObject:
+        clusterName: taskboard-dev
+        region: eu-north-1
+        # Find the VPC by its Name tag. The VPC is recreated for every work
+        # session and gets a new ID each time, and pods cannot ask the
+        # instance metadata service because the nodes block that.
+        vpcTags:
+          Name: taskboard-dev
+        replicaCount: 2
+        serviceAccount:
+          create: true
+          name: aws-load-balancer-controller
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            memory: 256Mi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 2m

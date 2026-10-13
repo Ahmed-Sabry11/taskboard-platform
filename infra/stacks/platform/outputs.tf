@@ -48,6 +48,14 @@ output "alb_security_group_id" {
   value       = module.security.alb_security_group_id
 }
 
+output "pod_identity_roles" {
+  description = "IAM roles bound to service accounts, or an empty map when disabled."
+  value = var.enable_pod_identity_roles ? {
+    "kube-system/ebs-csi-controller-sa"        = module.ebs_csi_identity[0].role_name
+    "kube-system/aws-load-balancer-controller" = module.lb_controller_identity[0].role_name
+  } : {}
+}
+
 output "iam_roles_created" {
   description = "Whether Terraform created the EKS roles or reused existing ones."
   value       = module.iam.roles_created

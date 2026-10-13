@@ -19,11 +19,21 @@ node_max_size       = 4
 # One NAT gateway keeps the cost down. Set to false for one per Availability Zone.
 single_nat_gateway = true
 
+# ---- AWS free plan account ----------------------------------------------------
+# The plan allows one region, a short list of instance types, and 5 vCPUs.
+# Details are in docs/infrastructure.md. Replace the lines above with:
+# region              = "eu-north-1"
+# node_instance_types = ["m7i-flex.large"]
+# node_min_size       = 1
+# node_max_size       = 2
+
 # ---- AWS Academy Learner Lab --------------------------------------------------
 # The lab does not allow creating IAM roles. Reuse its LabRole for both.
 # Find the ARN with:  aws iam get-role --role-name LabRole --query Role.Arn --output text
 # existing_cluster_role_arn = "arn:aws:iam::<ACCOUNT_ID>:role/LabRole"
 # existing_node_role_arn    = "arn:aws:iam::<ACCOUNT_ID>:role/LabRole"
+#
+# enable_pod_identity_roles = false
 #
 # Only if the lab refuses to create a KMS key:
 # enable_secrets_encryption = false

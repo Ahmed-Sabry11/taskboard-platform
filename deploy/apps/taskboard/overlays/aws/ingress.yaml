@@ -1,0 +1,49 @@
+# The public entry point. The AWS Load Balancer Controller turns this object
+# into an Application Load Balancer in the public subnets.
+#
+#   internet --> ALB --/api--> backend pods
+#                    --/-----> frontend pods
+#
+# The load balancer sends traffic straight to pod addresses (target type ip),
+# without passing through a node port.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: taskboard
+  annotations:
+    # After the services and deployments exist.
+    argocd.argoproj.io/sync-wave: "2"
+    alb.ingress.kubernetes.io/load-balancer-name: taskboard-dev
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    # HTTP only: the project has no domain name, and a certificate needs one.
+    # With a domain this becomes HTTPS with a redirect from port 80.
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+    # Use the security group that Terraform created, found by its Name tag,
+    # and leave its rules alone: they already allow only ports 8080 and 8000
+    # from the load balancer to the cluster.
+    alb.ingress.kubernetes.io/security-groups: taskboard-dev-alb
+    alb.ingress.kubernetes.io/manage-backend-security-group-rules: "false"
+    # Stop sending to a pod 30 seconds after it starts shutting down.
+    alb.ingress.kubernetes.io/target-group-attributes: deregistration_delay.timeout_seconds=30
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: "10"
+    alb.ingress.kubernetes.io/healthy-threshold-count: "2"
+spec:
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  name: http
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  name: http

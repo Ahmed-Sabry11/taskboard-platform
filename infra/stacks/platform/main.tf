@@ -62,6 +62,74 @@ module "eks" {
   node_max_size       = var.node_max_size
 }
 
+# ---- Cluster add-ons that call AWS ---------------------------------------------
+# Each controller below gets its own IAM role, bound to its own service
+# account. They are skipped where IAM roles cannot be created (AWS Academy
+# Learner Lab), and the controllers then fall back to the node role.
+
+# Hands IAM roles to pods. Required by the two associations below.
+resource "aws_eks_addon" "pod_identity_agent" {
+  count = var.enable_pod_identity_roles ? 1 : 0
+
+  cluster_name = module.eks.cluster_name
+  addon_name   = "eks-pod-identity-agent"
+
+  resolve_conflicts_on_create = "OVERWRITE"
+  resolve_conflicts_on_update = "OVERWRITE"
+}
+
+# Creates and attaches EBS volumes for PersistentVolumeClaims.
+module "ebs_csi_identity" {
+  source = "../../modules/pod-identity"
+  count  = var.enable_pod_identity_roles ? 1 : 0
+
+  cluster_name        = module.eks.cluster_name
+  role_name           = "${local.name}-ebs-csi"
+  namespace           = "kube-system"
+  service_account     = "ebs-csi-controller-sa"
+  managed_policy_arns = ["arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"]
+}
+
+resource "aws_eks_addon" "ebs_csi" {
+  count = var.enable_pod_identity_roles ? 1 : 0
+
+  cluster_name = module.eks.cluster_name
+  addon_name   = "aws-ebs-csi-driver"
+
+  resolve_conflicts_on_create = "OVERWRITE"
+  resolve_conflicts_on_update = "OVERWRITE"
+
+  depends_on = [
+    aws_eks_addon.pod_identity_agent,
+    module.ebs_csi_identity,
+  ]
+}
+
+# Turns Kubernetes Ingress objects into Application Load Balancers. The
+# controller itself is installed by ArgoCD. Only its AWS permissions are
+# defined here. The policy is the one published with the controller release.
+module "lb_controller_identity" {
+  source = "../../modules/pod-identity"
+  count  = var.enable_pod_identity_roles ? 1 : 0
+
+  cluster_name       = module.eks.cluster_name
+  role_name          = "${local.name}-lb-controller"
+  namespace          = "kube-system"
+  service_account    = "aws-load-balancer-controller"
+  inline_policy_json = file("${path.module}/policies/aws-load-balancer-controller.json")
+
+  depends_on = [aws_eks_addon.pod_identity_agent]
+}
+
+# Serves pod CPU and memory to the Horizontal Pod Autoscaler and "kubectl top".
+resource "aws_eks_addon" "metrics_server" {
+  cluster_name = module.eks.cluster_name
+  addon_name   = "metrics-server"
+
+  resolve_conflicts_on_create = "OVERWRITE"
+  resolve_conflicts_on_update = "OVERWRITE"
+}
+
 module "security" {
   source = "../../modules/security"
 

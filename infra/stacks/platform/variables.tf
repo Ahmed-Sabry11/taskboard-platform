@@ -98,6 +98,12 @@ variable "node_max_size" {
 
 # ---- IAM ----------------------------------------------------------------------
 
+variable "enable_pod_identity_roles" {
+  description = "Create dedicated IAM roles for the storage driver and the load balancer controller, bound to their service accounts. Set to false where IAM roles cannot be created, such as AWS Academy Learner Lab."
+  type        = bool
+  default     = true
+}
+
 variable "existing_cluster_role_arn" {
   description = "Existing IAM role for the control plane. Null creates a least-privilege role. In AWS Academy Learner Lab set it to arn:aws:iam::<ACCOUNT_ID>:role/LabRole."
   type        = string
