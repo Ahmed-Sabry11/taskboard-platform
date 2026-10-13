@@ -15,6 +15,10 @@ updates:
     open-pull-requests-limit: 3
     commit-message:
       prefix: "build(deps)"
+    # Major versions are upgraded deliberately, by hand, not by a bot.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
       frontend:
         patterns: ["*"]
@@ -22,11 +26,17 @@ updates:
 
   - package-ecosystem: pip
     directory: /app/backend
+    # Only raise a version range when the current one excludes the new release.
+    versioning-strategy: increase-if-necessary
     schedule:
       interval: monthly
     open-pull-requests-limit: 3
     commit-message:
       prefix: "build(deps)"
+    # Major versions are upgraded deliberately, by hand, not by a bot.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
       backend:
         patterns: ["*"]
@@ -41,6 +51,10 @@ updates:
     open-pull-requests-limit: 2
     commit-message:
       prefix: "build(deps)"
+    # Major versions are upgraded deliberately, by hand, not by a bot.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /
@@ -49,6 +63,10 @@ updates:
     open-pull-requests-limit: 2
     commit-message:
       prefix: "ci(deps)"
+    # Major versions are upgraded deliberately, by hand, not by a bot.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: terraform
     directories:
@@ -60,3 +78,7 @@ updates:
     open-pull-requests-limit: 2
     commit-message:
       prefix: "build(deps)"
+    # Major versions are upgraded deliberately, by hand, not by a bot.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
