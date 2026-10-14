@@ -394,6 +394,7 @@ kubectl get events --sort-by=.lastTimestamp
 | `forbidden: violates PodSecurity "restricted"` | A pod spec lacks the required security settings | The message lists the missing fields |
 | `field is immutable` when applying the Job | Job already exists | `kubectl delete job migrate`, then apply again |
 | Browser cannot open `127.0.0.1:8090` | Cluster was created without the config file, or the port is in use | `docker ps` should show `127.0.0.1:8090->30080/tcp` on the control-plane container. Otherwise recreate the cluster. |
+| After a reboot the cluster does not start: `ports are not available ... bind: An attempt was made to access a socket in a way forbidden by its access permissions` | Windows reserved the port range containing the cluster's API port. Clusters created before the config fixed the port to 6443 used a random high port. | `netsh int ipv4 show excludedportrange protocol=tcp` lists the reserved ranges. Recreate the cluster from the current config, or as a one-off run `net stop winnat`, `docker start taskboard-control-plane`, `net start winnat` in an administrator PowerShell. |
 | `kubectl` talks to the wrong cluster | Another context is selected | `kubectl config use-context kind-taskboard` |
 
 ## 14. Clean up
