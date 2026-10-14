@@ -3,6 +3,12 @@
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 name: taskboard
+# A fixed API port. By default kind picks a random high port, and Windows
+# (Hyper-V/WinNAT) can reserve that port after a reboot, which stops the
+# cluster from starting. 6443 is outside the ranges Windows reserves.
+networking:
+  apiServerAddress: "127.0.0.1"
+  apiServerPort: 6443
 nodes:
   - role: control-plane
     # Makes the frontend's NodePort reachable from your machine at
